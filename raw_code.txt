@@ -1,0 +1,18 @@
+/*
+* $Id: MOESI_CMP_token-dir.sm 1.6 05/01/19 15:48:35-06:00
+mikem@royal16.cs.wisc.edu $
+*/
+/**
+Modified by Andrew Hay (andrewh@cs.auckland.ac.nz), 2011
+*/
+
+machine(L1Cache, "MESIF protocol") {
+// Message buffers: this node TO the network
+MessageBuffer requestFromL1Cache, network = "To", virtual_network = "0", ordered = "false";
+MessageBuffer responseFromL1Cache, network = "To", virtual_network = "1", ordered = "false";
+MessageBuffer dataResponseFromL1Cache, network = "To", virtual_network = "4", ordered = "false";
+// Message buffers: this node FROM the network
+MessageBuffer requestToL1Cache, network = "From", virtual_network = "0", ordered = "false";
+MessageBuffer responseToL1Cache, network = "From", virtual_network = "1", ordered = "false";
+MessageBuffer dataResponseToL1Cache, network = "From", virtual_network = "4", ordered = "false";
+}

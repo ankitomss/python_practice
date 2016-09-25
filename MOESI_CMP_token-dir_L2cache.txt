@@ -1,0 +1,1192 @@
+//Home Node and Shared Cache Controller SLICC Code
+/*
+    Copyright (C) 1999-2005 by Mark D. Hill and David A. Wood for the
+    Wisconsin Multifacet Project.  Contact: gems@cs.wisc.edu
+    http://www.cs.wisc.edu/gems/
+    --------------------------------------------------------------------
+    This file is part of the SLICC (Specification Language for
+    Implementing Cache Coherence), a component of the Multifacet GEMS
+    (General Execution-driven Multiprocessor Simulator) software
+    toolset originally developed at the University of Wisconsin-Madison.
+    SLICC was originally developed by Milo Martin with substantial
+    contributions from Daniel Sorin.
+    Substantial further development of Multifacet GEMS at the
+    University of Wisconsin was performed by Alaa Alameldeen, Brad
+    Beckmann, Jayaram Bobba, Ross Dickson, Dan Gibson, Pacia Harper,
+    Derek Hower, Milo Martin, Michael Marty, Carl Mauer, Michelle Moravan,
+    Kevin Moore, Manoj Plakal, Daniel Sorin, Haris Volos, Min Xu, and Luke
+Yen.
+    --------------------------------------------------------------------
+    If your use of this software contributes to a published paper, we
+    request that you (1) cite our summary paper that appears on our
+    website (http://www.cs.wisc.edu/gems/) and (2) e-mail a citation
+    for your published paper to gems@cs.wisc.edu.
+    If you redistribute derivatives of this software, we request that
+    you notify us and either (1) ask people to register with us at our
+    website (http://www.cs.wisc.edu/gems/) or (2) collect registration
+    information and periodically send it to us.
+    --------------------------------------------------------------------
+    Multifacet GEMS is free software; you can redistribute it and/or
+    modify it under the terms of version 2 of the GNU General Public
+    License as published by the Free Software Foundation.
+    Multifacet GEMS is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+    General Public License for more details.
+    You should have received a copy of the GNU General Public License
+    along with the Multifacet GEMS; if not, write to the Free Software
+    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
+    02111-1307, USA
+    The GNU General Public License is contained in the file LICENSE.
+### END HEADER ###
+*/
+/*
+ * $Id: MOESI_CMP_token-dir.sm 1.6 05/01/19 15:48:35-06:00
+mikem@royal16.cs.wisc.edu $
+*/ /**
+Modified by Andrew Hay (andrewh@cs.auckland.ac.nz), 2011
+*/
+machine(L2Cache, "MESIF protocol") {
+    // Message buffers: this node TO the network
+    MessageBuffer requestFromL2Cache, network="To", virtual_network="2",
+ordered="false";  // this L2 bank -> Memory
+    MessageBuffer responseFromL2Cache, network="To", virtual_network="1",
+ordered="false";  // this L2 bank -> a local L1
+    MessageBuffer dataResponseFromL2Cache, network="To", virtual_network="4",
+ordered="false"; // cheating, simplifies things
+    // Message buffers: this node FROM the network
+    MessageBuffer L1RequestToL2Cache, network="From", virtual_network="0",
+ordered="false";  // a local L1 -> this L2 bank
+    MessageBuffer responseToL2Cache, network="From", virtual_network="3",
+ordered="false";  // Memory -> this L2 bank
+    MessageBuffer dataResponseToL2Cache, network="From", virtual_network="4",
+ordered="false"; // cheating, simplifies things
+    // STATES
+    enumeration(State, desc="Cache states", default="L2Cache_State_I") {
+        // Base states
+        //NP,     "NP",
+        I,      "I",
+        //F,      "F",
+        FM,     "FM",
+        M,      "M",
+        W,      "W",
+memory";
+        WD,     "WD",
+        WR,     "WR",
+        // Conflict states
+        //WRC,    "WRC",
+conflicting requests";
+        WDC,    "WDC",
+  desc="Not Present"; // Base Not present?
+desc="Idle";
+  desc="Forward";
+desc="Owned (forward but dirty)";
+desc="Modified";
+desc="Waiting on reply from L1 and data from
+desc="Waiting on only data from memory";
+desc="Waiting on only reply from L1";
+  desc="Waiting on only replies from L1, multiple
+                            desc="Waiting on only data from memory, multiple
+conflicting requests"; // Should not see a WB event!
+WCF,    "WCF",      desc="Waiting on replies from L1, data in memory
+        // Write back states
+        FW,     "FW",       desc="Forwarding on a GetX/S msg, acts like a WR
+state but recycles other GetX/S requests";
+WB, "WB",
+desc="Writing back to memory";
+    desc="Writing back M to memory";
+    desc="Writing back FM to memory";
+    desc="Writing back M to memory, but we also
+    desc="Writing back FM to memory, but we also
+    desc="WCF but writing back M";
+    desc="WCF but writing back FM";
+// WBM,
+// WBFM,
+// WBWM,
+"WBM",
+"WBFM",
+"WBWM",
+have received GetX/S/Inst";
+        // WBWFM,  "WBWFM",
+have received GetX/S/Inst";
+        // WBMWCF, "WBMWCF",
+        // WBFMWCF,"WBFMWCF",
+}
+    // EVENTS
+    enumeration(Event, desc="Cache events") {
+        GetS,                   desc="GetS from an L1 cache";
+        GetX,                   desc="GetX from an L1 cache";
+        GetInstr,               desc="GetInstr from an L1 cache";
+        Read,                   desc="Read request an L1 cache";
+        Read_Final,             desc="Read request an L1 cache(no more
+requestors after this)";
+        Cncl,                   desc="Cancel memory request an L1 cache
+(remaining requestors after this)";
+        Cncl_Final,             desc="Final cancel memory request an L1 cache
+(no more requestors after this)";
+        Data,                   desc="Data from memory - indicates that there
+are requests waiting (don’t enter I)";
+        Data_Final,             desc="Data from memory - no more requests";
+        // TODO: we know that a write back only occurs if the forwarding node
+is evicting - safe to become forward in
+        // L2 cache here.
+cache";
+//WB_Data,
+//DataF,
+DataFM,
+//DataE,
+  desc="Write back data from L1 cache";
+  desc="Received shared data from a cache";
+desc="Received forwarded/modified data from a
+  desc="Received exclusive data from a
+cache";
+        DataM,                  desc="Received modified data from a cache";
+        DACK,                   desc="DACK from L1 Cache";
+        Mem_Ack,                desc="Ack from memory";
+        Cncl_No_Conflict,       desc="Cancel request, BUT we have new
+requests which are non-conflicting to handle (cTable is empty, requestor
+queue isn’t)";
+        Read_No_Conflict,       desc="Read request, BUT we have new requests
+which are non-conflicting to handle (cTable is empty, requestor queue
+isn’t)";
+    Read_Delay,
+    L2_Replacement,
+}
+// Internal types
+desc="Read request that must be delayed";
+desc="L2 cache line replacement";
+// CacheEntry
+structure(Entry, desc="...", interface="AbstractCacheEntry") {
+        State CacheState,
+        bool Dirty,
+memory)?";
+        DataBlock DataBlk,
+    structure(TBE, desc="...") {
+        Address Address,
+        State TBEState,
+        DataBlock DataBlk,
+desc="cache state";
+desc="Is the data dirty (different than
+desc="data for the block";
+   desc="Physical address for this TBE";
+   desc="Transient state";
+   desc="Buffer for the data block";
+}
+        bool Dirty, default="false",desc="data is dirty";
+        PrefetchBit Prefetch,       desc="Set if this was caused by a
+prefetch";
+        MachineID L1_Read_ID,       desc="ID of the L1 cache we want to
+forward the block to when we get data";
+        MachineID L1_WB_ID,         desc="ID of the l1 cache that is writing
+back the line";
+        RequestorQueue requestors,  desc="The queue of nodes which are
+currently requesting this line but don’t have the line or are not scheduled
+to get the line yet";
+        ConflictTable cTable,       desc="The conflict table (nxn array of
+boolean values) which helps work out which nodes need the line to be
+transferred too";
+        int remainingReq,
+requests remaining to be serviced";
+}
+    // External types
+desc="A counter for the number of
+
+external_type(CacheMemory) {
+        bool cacheAvail(Address);
+        Address cacheProbe(Address);
+        void allocate(Address);
+        void deallocate(Address);
+        Entry lookup(Address);
+        void changePermission(Address, AccessPermission);
+        bool isTagPresent(Address);
+        void setMRU(Address);
+}
+    external_type(TBETable) {
+      TBE lookup(Address);
+      void allocate(Address);
+      void deallocate(Address);
+      bool isPresent(Address);
+    }
+    // global variables
+    TBETable L2_TBEs, template_hack="<L2Cache_TBE>";
+    CacheMemory L2cacheMemory, template_hack="<L2Cache_Entry>",
+constructor_hack=’L2_CACHE_NUM_SETS_BITS,L2_CACHE_ASSOC,MachineType_L2Cache,in
+t_to_string(i)’;
+    //CacheMemory L2cacheMemory, template_hack="<L2Cache_Entry>",
+constructor_hack=’L2_CACHE_NUM_SETS_BITS,L2_CACHE_ASSOC,MachineType_L2Cache,in
+t_to_string(i)+"_L2"’;
+// Functions
+// inclusive cache, returns L2 entries only
+Entry getL2CacheEntry(Address addr), return_by_ref="yes" {
+    return L2cacheMemory[addr];
+}
+bool isL2CacheTagPresent(Address addr) {
+    return (L2cacheMemory.isTagPresent(addr));
+}
+void changePermission(Address addr, AccessPermission permission) {
+    if (L2cacheMemory.isTagPresent(addr)) {
+        return L2cacheMemory.changePermission(addr, permission);
+    }
+    else {
+        error("cannot change permission, L2 block not present");
+} }
+State getState(Address addr) {
+    if(L2_TBEs.isPresent(addr)) {
+        return L2_TBEs[addr].TBEState;
+    }
+    else if (isL2CacheTagPresent(addr)) {
+        return getL2CacheEntry(addr).CacheState;
+}
+    return State:I;
+}
+void setState(Address addr, State state) {
+    // MUST CHANGE
+    if (L2_TBEs.isPresent(addr)) {
+        L2_TBEs[addr].TBEState := state;
+}
+            getL2CacheEntry(addr).CacheState := state;
+            // Set permission
+            // if (state == State:I) {
+            //     changePermission(addr, AccessPermission:Invalid);
+            // }
+            // else {
+            //     changePermission(addr, AccessPermission:Busy);
+            // }
+            if (state == State:I) {
+                changePermission(addr, AccessPermission:Invalid);
+            }
+            else if (state == State:FM || state == State:M ) {
+                changePermission(addr, AccessPermission:Read_Write);
+            }
+            else {
+                changePermission(addr, AccessPermission:Invalid);
+} }
+}
+    // Requestor queue functions
+    /*bool isRequestor(Address addr, MachineID element) {
+        return L2_TBEs[addr].requestors.contains(element);
+}*/
+    bool isLastRequestor(Address addr, MachineID element) {
+        return L2_TBEs[addr].requestors.lastElement(element);
+}
+    /*MachineID getNextRequestor(Address addr) {
+        return L2_TBEs[addr].requestors.get(0);
+}*/
+    MachineID popNextRequestor(Address addr) {
+        return L2_TBEs[addr].requestors.pop();
+}
+    /*void addNode(Address addr, MachineID element) {
+        if (isRequestor(addr, element) == false) {
+            L2_TBEs[addr].requestors.push(element);
+        }
+}*/
+    /*bool finalRequestor(Address addr) {
+        return (L2_TBEs[addr].requestors.getSize() <= 1) &&
+L2_TBEs[addr].cTable.empty();
+    }*/
+    void removeRequestor(Address addr, MachineID requestor) {
+        //if (isRequestor(addr, requestor)) {
+        L2_TBEs[addr].requestors.remove(requestor);
+        //}
+}
+    // Removes the requestor and then pops the head of list
+    MachineID popNextTransfer(Address addr, MachineID requestor) {
+        removeRequestor(addr, requestor);
+        return popNextRequestor(addr);
+    }
+    // Only works if newHead is inside the requestor queue already
+    /*void moveToHead(Address addr, MachineID newHead) {
+        if (isRequestor(addr, newHead)) {
+            removeRequestor(addr, newHead);
+            L2_TBEs[addr].requestors.pushToHead(newHead);
+} }*/
+    // returns the next on the list that is not the requestor
+    /*MachineID popNextTransferNotRequestor(Address addr, MachineID
+requestor) {
+        if (getNextRequestor(addr) == requestor) {
+            moveToHead(addr, L2_TBEs[addr].requestors.get(1));
+}
+}*/
+    // Must only be run when requestor is not the last element
+    MachineID popNextTransferAfterRequestor(Address addr, MachineID
+requestor) {
+        assert(isLastRequestor(addr, requestor) ==  false);
+        return L2_TBEs[addr].requestors.popElementAfter(requestor);
+    }
+    void clearRequestors(Address addr) {
+        L2_TBEs[addr].requestors.clear();
+}
+    void allocateTBE(Address addr) {
+        if (L2_TBEs.isPresent(addr) == false) {
+} }
+check_allocate(L2_TBEs);
+L2_TBEs.allocate(addr);
+//L2_TBEs[address].DataBlk := getL2CacheEntry(address).DataBlk;
+//L2_TBEs[address].Dirty := getL2CacheEntry(address).Dirty;
+L2_TBEs[addr].requestors.clear();
+L2_TBEs[addr].cTable.setSize(numberOfL1Cache());
+if (isL2CacheTagPresent(addr)) {
+    L2_TBEs[addr].TBEState := getL2CacheEntry(addr).CacheState;
+}
+    // Also allocates the TBE, it is simpler this way as adding the nodes
+simplifies the transition logic. Not used
+    /*void addRequestorNode(Address addr, MachineID requestor) {
+        // Check TBE is allocated first
+        allocateTBE(addr);
+        // Only add the node if it has not already been added, and then
+subsequently removed from the requestor queue by being transferred to!
+        if (L2_TBEs[addr].cTable.reportedConflict(requestor) == false) {
+            addNode(addr, requestor);
+} }*/
+    void addConflictNodes(Address addr, MachineID requestor, MachineIDset
+conflicting) {
+        // Add all the conflicting nodes which have not already gotten the
+line
+L2_TBEs[addr].requestors.pushAll(L2_TBEs[addr].cTable.addConflictNodes(request
+or, conflicting));
+}
+    // All delays when we want the read to recycle -- and not be processed in
+addConflictNodes
+    bool isReadDelay(Address addr, MachineID requestor) {
+        return (getState(addr) == State:WDC) || // Already a read, so must
+wait
+                // When in WCF, we want to delay if this requestor is at the
+end of the queue (because if we sent a "wait", other elements may be
+                // added to the end of the queue - we are screwed), but if
+the queue is empty, we dont want to delay
+                (getState(addr) == State:WCF && isLastRequestor(addr,
+requestor) && L2_TBEs[addr].requestors.isEmpty() == false);
+}
+    Event writeback_request_type_to_event(CoherenceRequestType type) {
+        if (type == CoherenceRequestType:DataM) {
+            return Event:DataM;
+        } else if (type == CoherenceRequestType:DataFM) {
+            return Event:DataFM;
+        } else {
+            error("Invalid CacheRequestType");
+        }
+}
+    // Whenever a GetX/S/Inst arrives and is not recycled
+    void registerRequest(Address addr) {
+        allocateTBE(addr);
+        L2_TBEs[addr].remainingReq := L2_TBEs[addr].remainingReq + 1;
+// Out ports
+    out_port(requestNetwork_out, RequestMsg, requestFromL2Cache);
+    out_port(responseNetwork_out, ResponseMsg, responseFromL2Cache);
+    out_port(dataResponseNetwork_out, ResponseMsg, dataResponseFromL2Cache);
+// In ports
+    in_port(L1requestNetwork_in, RequestMsg, L1RequestToL2Cache) {
+        if (L1requestNetwork_in.isReady()) {
+            peek(L1requestNetwork_in, RequestMsg) {
+                assert(in_msg.Destination.isElement(machineID));
+                // Due to the fact that this method does computation ONLY
+when the msg is NOT recycled, must bypass the recycling messages!
+                // GETS and GETX add the requestor to the requestor queue (if
+it should be added)
+                if (in_msg.Type == CoherenceRequestType:GETS) {
+                    // if (getState(in_msg.Address) != State:FW &&
+                    //     getState(in_msg.Address) != State:WB) {
+                    //
+                    //     // Assuming that the GetX/S/Inst msg always comes
+before the Read/Cncl msg
+                    //     allocateTBE(in_msg.Address);
+                    //     L2_TBEs[in_msg.Address].remainingReq :=
+L2_TBEs[in_msg.Address].remainingReq + 1;
+// }
+                    trigger(Event:GetS, in_msg.Address);
+                }
+                else if (in_msg.Type == CoherenceRequestType:GET_INSTR) {
+                    // if (getState(in_msg.Address) != State:FW &&
+                    //     getState(in_msg.Address) != State:WB) {
+                    //
+                    //     allocateTBE(in_msg.Address);
+                    //     L2_TBEs[in_msg.Address].remainingReq :=
+L2_TBEs[in_msg.Address].remainingReq + 1;
+// }
+                    trigger(Event:GetInstr, in_msg.Address);
+                }
+                else if (in_msg.Type == CoherenceRequestType:GETX) {
+                    // if (getState(in_msg.Address) != State:FW &&
+                    //     getState(in_msg.Address) != State:WB) {
+                    //
+                    //     allocateTBE(in_msg.Address);
+                    //     L2_TBEs[in_msg.Address].remainingReq :=
+L2_TBEs[in_msg.Address].remainingReq + 1;
+// }
+                    trigger(Event:GetX, in_msg.Address);
+                }
+                // READ and CNCL adds the conflicting nodes
+                else if (in_msg.Type == CoherenceRequestType:READ) {
+                    assert(getState(in_msg.Address) != State:WD);
+                    // Only if this read is not to be delayed (recycled) do
+we add conflictnodes
+if (isReadDelay(in_msg.Address, in_msg.Requestor) ==
+    addConflictNodes(in_msg.Address, in_msg.Requestor,
+    L2_TBEs[in_msg.Address].remainingReq :=
+false) {
+in_msg.ConflictMachs);
+L2_TBEs[in_msg.Address].remainingReq - 1;
+                        // Requestor queue is up to date now
+                    }
+                    if (isReadDelay(in_msg.Address, in_msg.Requestor)) {
+                        trigger(Event:Read_Delay, in_msg.Address);
+}
+                    else if (L2_TBEs[in_msg.Address].cTable.empty()  &&
+L2_TBEs[in_msg.Address].remainingReq == 0) {
+                        trigger(Event:Read_Final, in_msg.Address);
+                    }
+                    else if (L2_TBEs[in_msg.Address].cTable.empty() &&
+L2_TBEs[in_msg.Address].remainingReq > 0) {
+                        trigger(Event:Read_No_Conflict, in_msg.Address);
+}
+                    // Delay only if we are in a conflicting state and we are
+the final requestor in the RQ
+{
+false
+/*else if (isReadDelay(in_msg.Address, in_msg.Requestor))
+    trigger(Event:Read_Delay, in_msg.Address);
+}*/
+/*else if (L2_TBEs[in_msg.Address].cTable.empty() ==
+                                &&
+L2_TBEs[in_msg.Address].requestors.getSize() == 1 &&
+isRequestor(in_msg.Address, in_msg.Requestor)) {
+                        trigger(Event:Read_Delay, in_msg.Address);
+{
+request");
+    }*/
+    else if (L2_TBEs[in_msg.Address].cTable.empty() == false)
+        trigger(Event:Read, in_msg.Address);
+    }
+    else {
+        error("Invalid state for the conflict table on a Read
+} }
+else if (in_msg.Type == CoherenceRequestType:CNCL) {
+    addConflictNodes(in_msg.Address, in_msg.Requestor,
+in_msg.ConflictMachs);
+                    removeRequestor(in_msg.Address, in_msg.Requestor);
+                    L2_TBEs[in_msg.Address].remainingReq :=
+L2_TBEs[in_msg.Address].remainingReq - 1;
+                    // Requestor queue is up to date now
+                    if (L2_TBEs[in_msg.Address].cTable.empty() &&
+L2_TBEs[in_msg.Address].remainingReq == 0) {
+                        trigger(Event:Cncl_Final, in_msg.Address);
+                    }
+                    else if (L2_TBEs[in_msg.Address].cTable.empty() &&
+L2_TBEs[in_msg.Address].remainingReq > 0) {
+                        trigger(Event:Cncl_No_Conflict, in_msg.Address);
+{
+}
+else if (L2_TBEs[in_msg.Address].cTable.empty() == false)
+    trigger(Event:Cncl, in_msg.Address);
+}
+else {
+    error("Invalid state for the conflict table on a
+Cancel request");
+                    }
+}
+                /*else if (in_msg.Type == CoherenceRequestType:PUTX) {
+                    trigger(Event:WB_Data, in_msg.Address);
+}*/
+                else if (in_msg.Type == CoherenceRequestType:DataM ||
+                         in_msg.Type == CoherenceRequestType:DataFM) {
+                    if (L2cacheMemory.isTagPresent(in_msg.Address) ||
+L2cacheMemory.cacheAvail(in_msg.Address)) {
+                        trigger(writeback_request_type_to_event(in_msg.Type),
+in_msg.Address);
+                    }
+                    else {
+                        trigger(Event:L2_Replacement,
+L2cacheMemory.cacheProbe(in_msg.Address));
+                    }
+}
+    in_port(responseToL2Cache_in, ResponseMsg, responseToL2Cache) {
+        if (responseToL2Cache_in.isReady()) {
+            peek(responseToL2Cache_in, ResponseMsg) {
+                if (in_msg.Type == CoherenceResponseType:MEMORY_DATA) {
+} }
+}
+                    if (L2_TBEs.isPresent(in_msg.Address) &&
+L2_TBEs[in_msg.Address].remainingReq > 0) {
+{
+} }
+}
+} }
+}
+// Events
+        trigger(Event:Data, in_msg.Address);
+}
+else {
+        trigger(Event:Data_Final, in_msg.Address);
+    }
+}
+else if (in_msg.Type == CoherenceResponseType:MEMORY_ACK) {
+    trigger(Event:Mem_Ack, in_msg.Address);
+}
+//Dummy, not used in L2
+in_port(dataResponseNetwork_in, ResponseMsg, dataResponseToL2Cache) {
+    if (dataResponseNetwork_in.isReady()) {
+        peek(dataResponseNetwork_in, ResponseMsg) {
+// Unnessary for L2 cache
+if (in_msg.Type == CoherenceResponseType:DACK){
+    trigger(Event:DACK, in_msg.Address);
+}
+action(a_issueFetchToMemory, "a", desc="fetch data from memory") {
+    enqueue(requestNetwork_out, RequestMsg, latency="L2_REQUEST_LATENCY")
+    out_msg.Address := address;
+    out_msg.Type := CoherenceRequestType:GETS;
+    out_msg.Requestor := machineID;
+    out_msg.Destination.add(map_Address_to_Directory(address));
+    out_msg.MessageSize := MessageSizeType:Control;
+}
+{
+}
+    action(aa_sendAck, "aa", desc="Send acknowledgement message to
+requestor") {
+        peek(L1requestNetwork_in, RequestMsg) {
+            enqueue(responseNetwork_out, ResponseMsg,
+latency="L1_REQUEST_LATENCY") {
+                out_msg.Address := address;
+} }
+}
+out_msg.Type := CoherenceResponseType:ACK;
+out_msg.SenderMachine := MachineType:L2Cache;
+out_msg.Destination.add(in_msg.Requestor);
+out_msg.MessageSize := MessageSizeType:Control;
+action(c_writebackData, "c", desc="Write back data memory") {
+    enqueue(requestNetwork_out, RequestMsg, latency="L2_REQUEST_LATENCY")
+} }
+out_msg.Address := address;
+out_msg.Type := CoherenceRequestType:PUTX;
+out_msg.Requestor := machineID;
+out_msg.Destination.add(map_Address_to_Directory(address));
+out_msg.MessageSize := MessageSizeType:Writeback_Data;
+out_msg.DataBlk := getL2CacheEntry(address).DataBlk;
+action(di_sendIACKToRequestor, "di", desc="send IACK to requestor") {
+    peek(L1requestNetwork_in, RequestMsg) {
+            enqueue(responseNetwork_out, ResponseMsg,
+latency="L1_REQUEST_LATENCY") {
+                out_msg.Address := address;
+                out_msg.Type := CoherenceResponseType:IACK;
+                out_msg.SenderMachine := MachineType:L2Cache;
+                out_msg.Dirty := false;
+                out_msg.Sender := machineID;
+                out_msg.Destination.add(in_msg.Requestor);
+
+out_msg.MessageSize := MessageSizeType:Control;
+} }
+}
+    action(d_storeDataTBE, "d", desc="Temporarily stores the data in the
+TBE") {
+        peek(responseToL2Cache_in, ResponseMsg) {
+            L2_TBEs[address].DataBlk := in_msg.DataBlk;
+            L2_TBEs[address].Dirty := in_msg.Dirty;
+} }
+    action(rd_requestStoreDataTBE, "rd", desc="Temporarily stores the data in
+the TBE (taken from WB data)") {
+        peek(L1requestNetwork_in, RequestMsg) {
+            L2_TBEs[address].DataBlk := in_msg.DataBlk;
+            L2_TBEs[address].Dirty := in_msg.Dirty;
+} }
+    action(f_forwardDataToCache, "f", desc="Forward data to L1 cache - not
+conflicting here") {
+        removeRequestor(address, L2_TBEs[address].L1_Read_ID);
+        if (isL2CacheTagPresent(address)) {
+            enqueue(responseNetwork_out, ResponseMsg,
+latency="L2_RESPONSE_LATENCY") {
+                out_msg.Address := address;
+                out_msg.Type := CoherenceResponseType:DataF_E;
+                out_msg.Sender := machineID;
+                out_msg.SenderMachine := MachineType:L2Cache;
+                out_msg.Destination.add(L2_TBEs[address].L1_Read_ID);
+                out_msg.DataBlk := getL2CacheEntry(address).DataBlk;
+                out_msg.Dirty := getL2CacheEntry(address).Dirty;
+                DEBUG_EXPR(out_msg.Address);
+                DEBUG_EXPR(out_msg.Destination);
+                DEBUG_EXPR(out_msg.DataBlk);
+                out_msg.MessageSize := MessageSizeType:Response_Data;
+            }
+}
+else {
+            enqueue(responseNetwork_out, ResponseMsg,
+latency="L2_RESPONSE_LATENCY") {
+} }
+}
+out_msg.Address := address;
+out_msg.Type := CoherenceResponseType:DataF_E;
+out_msg.Sender := machineID;
+out_msg.SenderMachine := MachineType:L2Cache;
+out_msg.Destination.add(L2_TBEs[address].L1_Read_ID);
+out_msg.DataBlk := L2_TBEs[address].DataBlk;
+out_msg.Dirty := L2_TBEs[address].Dirty;
+DEBUG_EXPR(out_msg.Address);
+DEBUG_EXPR(out_msg.Destination);
+DEBUG_EXPR(out_msg.DataBlk);
+out_msg.MessageSize := MessageSizeType:Response_Data;
+    action(fm_forwardmodifiedDataToCache, "fm", desc="Forward modified data
+to L1 cache - not conflicting here") {
+        peek(L1requestNetwork_in, RequestMsg) {
+            enqueue(dataResponseNetwork_out, ResponseMsg,
+latency="L2_RESPONSE_LATENCY") {
+                out_msg.Address := address;
+                out_msg.Type := CoherenceResponseType:DataF_M;
+                out_msg.Sender := machineID;
+                out_msg.SenderMachine := MachineType:L2Cache;
+                out_msg.Destination.add(in_msg.Requestor);
+                out_msg.DataBlk := getL2CacheEntry(address).DataBlk;
+                out_msg.Dirty := getL2CacheEntry(address).Dirty;
+                DEBUG_EXPR(out_msg.Address);
+                DEBUG_EXPR(out_msg.Destination);
+                DEBUG_EXPR(out_msg.DataBlk);
+                out_msg.MessageSize := MessageSizeType:Response_Data;
+            }
+}
+    action(ffm_forwardforwardmodifiedDataToCache, "ffm", desc="Forward
+forward modified data to L1 cache - not conflicting here") {
+        peek(L1requestNetwork_in, RequestMsg) {
+            enqueue(dataResponseNetwork_out, ResponseMsg,
+latency="L2_RESPONSE_LATENCY") {
+                out_msg.Address := address;
+} }
+    out_msg.Type := CoherenceResponseType:DataF_FM;
+    out_msg.Sender := machineID;
+    out_msg.SenderMachine := MachineType:L2Cache;
+    out_msg.Destination.add(in_msg.Requestor);
+    out_msg.DataBlk := getL2CacheEntry(address).DataBlk;
+    out_msg.Dirty := getL2CacheEntry(address).Dirty;
+    DEBUG_EXPR(out_msg.Address);
+    DEBUG_EXPR(out_msg.Destination);
+    DEBUG_EXPR(out_msg.DataBlk);
+    out_msg.MessageSize := MessageSizeType:Response_Data;
+}
+    action(wa_sendWBAck, "wa", desc="Send WB acknowledgement message to
+requestor") {
+        enqueue(responseNetwork_out, ResponseMsg,
+latency="L1_REQUEST_LATENCY") {
+            out_msg.Address := address;
+            out_msg.Type := CoherenceResponseType:MEMORY_ACK;
+            out_msg.SenderMachine := MachineType:L2Cache;
+            out_msg.Destination.add(L2_TBEs[address].L1_WB_ID);
+            out_msg.MessageSize := MessageSizeType:Control;
+} }
+    action(wb_sendWBAckDirect, "wb", desc="Send WB acknowledgement message to
+requestor") {
+        peek(L1requestNetwork_in, RequestMsg) {
+            enqueue(responseNetwork_out, ResponseMsg,
+latency="L1_REQUEST_LATENCY") {
+} }
+}
+out_msg.Address := address;
+out_msg.Type := CoherenceResponseType:MEMORY_ACK;
+out_msg.SenderMachine := MachineType:L2Cache;
+out_msg.Destination.add(in_msg.Requestor);
+out_msg.MessageSize := MessageSizeType:Control;
+    // Conflict only messages
+    action(ax_ackAndTransfer, "ax", desc="Send ack and XFR to requester
+cache") {
+        peek(L1requestNetwork_in, RequestMsg) {
+            enqueue(responseNetwork_out, ResponseMsg,
+latency="L1_REQUEST_LATENCY") {
+} }
+}
+out_msg.Address := address;
+out_msg.Type := CoherenceResponseType:XFR;
+out_msg.SenderMachine := MachineType:L2Cache;
+out_msg.Dirty := false;
+out_msg.Sender := machineID;
+out_msg.Transfer := popNextRequestor(address);
+out_msg.Destination.add(in_msg.Requestor);
+out_msg.MessageSize := MessageSizeType:Control;
+    action(at_sendAckOrTransfer, "at", desc="Send acknowledgement message to
+requestor or transfer if necessary") {
+        peek(L1requestNetwork_in, RequestMsg) {
+            // No final nodes to transfer too, simply send ack
+            if (L2_TBEs[address].requestors.getSize() == 0) {
+                enqueue(responseNetwork_out, ResponseMsg,
+latency="L1_REQUEST_LATENCY") {
+                    out_msg.Address := address;
+                    out_msg.Type := CoherenceResponseType:ACK;
+                    out_msg.SenderMachine := MachineType:L2Cache;
+                    out_msg.Destination.add(in_msg.Requestor);
+                    out_msg.MessageSize := MessageSizeType:Control;
+} }
+            // Final node to be transferred too, send to this
+            else {
+                enqueue(responseNetwork_out, ResponseMsg,
+latency="L1_REQUEST_LATENCY") {
+                    out_msg.Address := address;
+                    out_msg.Type := CoherenceResponseType:XFR;
+                    out_msg.SenderMachine := MachineType:L2Cache;
+                    out_msg.Dirty := false;
+                    out_msg.Sender := machineID;
+                    out_msg.Transfer := popNextRequestor(address);
+                    out_msg.Destination.add(in_msg.Requestor);
+                    out_msg.MessageSize := MessageSizeType:Control;
+} }
+    // Using popNextTransfer because this (and tdx_dataAndTransferFromTBE)
+are called when home will be sending the data to the node: they should be
+removed from
+    // the requestor queue.
+    action(dx_dataAndTransfer, "dx", desc="Send data and XFR to requester
+cache") {
+        peek(L1requestNetwork_in, RequestMsg) {
+            enqueue(responseNetwork_out, ResponseMsg,
+latency="L2_RESPONSE_LATENCY") {
+                out_msg.Address := address;
+                out_msg.Type := CoherenceResponseType:DXFR;
+                out_msg.SenderMachine := MachineType:L2Cache;
+                out_msg.DataBlk := L2_TBEs[address].DataBlk;
+} }
+                out_msg.Dirty := false;
+                out_msg.Sender := machineID;
+                out_msg.Transfer := popNextTransfer(address,
+in_msg.Requestor);
+                out_msg.Destination.add(in_msg.Requestor);
+} }
+    out_msg.MessageSize := MessageSizeType:Response_Data;
+}
+    action(tdx_dataAndTransferFromTBE, "tdx", desc="Send data and XFR to
+requester cache (from TBE)") {
+        enqueue(responseNetwork_out, ResponseMsg,
+latency="L2_RESPONSE_LATENCY") {
+            out_msg.Address := address;
+            out_msg.Type := CoherenceResponseType:DXFR;
+            out_msg.SenderMachine := MachineType:L2Cache;
+            out_msg.DataBlk := L2_TBEs[address].DataBlk;
+            out_msg.Dirty := false;
+            out_msg.Sender := machineID;
+            out_msg.Transfer := popNextTransfer(address,
+L2_TBEs[address].L1_Read_ID);
+            out_msg.Destination.add(L2_TBEs[address].L1_Read_ID);
+            out_msg.MessageSize := MessageSizeType:Response_Data;
+} }
+    action(w_sendWait, "w", desc="Send wait to requester cache") {
+        peek(L1requestNetwork_in, RequestMsg) {
+            removeRequestor(address, in_msg.Requestor);
+            enqueue(responseNetwork_out, ResponseMsg,
+latency="L1_REQUEST_LATENCY") {
+                out_msg.Address := address;
+                out_msg.Type := CoherenceResponseType:Wait;
+                out_msg.SenderMachine := MachineType:L2Cache;
+                out_msg.DataBlk := L2_TBEs[address].DataBlk;
+                out_msg.Dirty := false;
+} }
+}
+out_msg.Sender := machineID;
+//out_msg.Transfer := in_msg.Requestor;
+out_msg.Destination.add(in_msg.Requestor);
+out_msg.MessageSize := MessageSizeType:Response_Data;
+    action(wx_sendWaitAndTransfer, "wx", desc="Send wait and XFR to requester
+cache") {
+        peek(L1requestNetwork_in, RequestMsg) {
+            //removeRequestor(address, in_msg.Requestor);
+            enqueue(responseNetwork_out, ResponseMsg,
+latency="L1_REQUEST_LATENCY") {
+                out_msg.Address := address;
+                out_msg.Type := CoherenceResponseType:WaitXFR;
+                out_msg.SenderMachine := MachineType:L2Cache;
+                out_msg.DataBlk := L2_TBEs[address].DataBlk;
+                out_msg.Dirty := false;
+                out_msg.Sender := machineID;
+                out_msg.Transfer := popNextTransferAfterRequestor(address,
+in_msg.Requestor);
+                out_msg.Destination.add(in_msg.Requestor);
+                out_msg.MessageSize := MessageSizeType:Response_Data;
+            }
+            // Since this node is ready to complete its memory transaction as
+soon as it gets the line, it should be passed the line ASAP
+            // Cannot do this now
+            //moveToHead(address, in_msg.Requestor);
+        }
+}
+    // Other actions
+    action(ss_allocateTBE, "\s", desc="Allocates the TBE (only for WB)") {
+        allocateTBE(address);
+}
+    action(s_deallocateTBE, "s", desc="Deallocate external TBE") {
+        L2_TBEs.deallocate(address);
+}
+    action(dc_deallocateL2CacheBlock, "dc", desc="Deallocate L2 cache block.
+Sets the cache to not present.") {
+        assert(L2cacheMemory.isTagPresent(address));
+        L2cacheMemory.deallocate(address);
+    }
+    action(ac_allocateL2CacheBlock, "ac", desc="Set L2-cache tag equal to tag
+of block B.") {
+        assert (L2cacheMemory.isTagPresent(address) == false); //{
+            L2cacheMemory.allocate(address);
+//} }
+    action(wc_writeHomeDataToL1Cache, "wc", desc="Write data from L1 cache")
+{
+        peek(L1requestNetwork_in, RequestMsg) {
+            getL2CacheEntry(address).DataBlk := in_msg.DataBlk;
+            getL2CacheEntry(address).Dirty := in_msg.Dirty;
+} }
+    action(ct_copydataTBE, "ct", desc="Copies data from the L2 cache into the
+TBE"){
+        L2_TBEs[address].DataBlk := getL2CacheEntry(address).DataBlk;
+        L2_TBEs[address].Dirty := getL2CacheEntry(address).Dirty;
+    }
+    action(o_popL1RequestQueue, "o", desc="Pop L1 request queue.") {
+        L1requestNetwork_in.dequeue();
+}
+    action(oo_popIncomingResponseQueue, "\o", desc="Pop response to L2
+queue.") {
+        responseToL2Cache_in.dequeue();
+    }
+    action(od_popIncomingDataResponseQueue, "od", desc="Pop DACK response to
+L2 queue.") {
+        dataResponseNetwork_in.dequeue();
+    }
+    action(rr_recordRead, "\r", desc="Record L1 read") {
+        peek(L1requestNetwork_in, RequestMsg) {
+            L2_TBEs[in_msg.Address].L1_Read_ID := in_msg.Requestor;
+        }
+}
+    action(gr_registerGet, "gr", desc="Registers this get request") {
+        peek(L1requestNetwork_in, RequestMsg) {
+            registerRequest(in_msg.Address);
+        }
+}
+    action(r_recordWB, "r", desc="Record L1 read") {
+        peek(L1requestNetwork_in, RequestMsg) {
+            L2_TBEs[in_msg.Address].L1_WB_ID := in_msg.Requestor;
+        }
+}
+    action(mr_setMRU, "mr", desc="manually set the MRU bit for cache line" )
+{
+        if(L2cacheMemory.isTagPresent(address)) {
+            L2cacheMemory.setMRU(address);
+} }
+    action(rq_recycleRequestQueue, "rq", desc="Send the head of the request
+queue to the back of the queue.") {
+        L1requestNetwork_in.recycle();
+    }
+    action(uu_profileMiss, "\u", desc="Profile the demand miss") {
+      peek(L1requestNetwork_in, RequestMsg) {
+
+ // AccessModeType not implemented
+        if (in_msg.Type != CoherenceRequestType:GET_INSTR){
+            profile_L2Cache_miss(convertToGenericType(in_msg.Type),
+in_msg.AccessMode, MessageSizeTypeToInt(in_msg.MessageSize),
+in_msg.Prefetch, machineIDToNodeID(in_msg.Requestor));
+} }
+}
+    // Transitions
+    transition(I, {GetS, GetInstr, GetX}, W) {
+        gr_registerGet;
+        di_sendIACKToRequestor;
+        a_issueFetchToMemory;
+        uu_profileMiss;
+        o_popL1RequestQueue;
+}
+    // If we received a cancel request before the line came back.
+    transition(I, {Data, Data_Final}) {
+        oo_popIncomingResponseQueue;
+    }
+    transition(I, DataM, M) {
+        ac_allocateL2CacheBlock;
+        wc_writeHomeDataToL1Cache;
+        wb_sendWBAckDirect;
+        mr_setMRU;
+        o_popL1RequestQueue;
+}
+    transition(I, DataFM, FM) {
+        ac_allocateL2CacheBlock;
+        wc_writeHomeDataToL1Cache;
+        wb_sendWBAckDirect;
+        mr_setMRU;
+        o_popL1RequestQueue;
+}
+// Requests when cached
+transition(M, {GetS, GetInstr, GetX}, FW) {
+    fm_forwardmodifiedDataToCache;
+    //ct_copydataTBE;
+    //mr_setMRU;
+    dc_deallocateL2CacheBlock;
+    gr_registerGet;
+    //uu_profileMiss; // TODO: want to change this to an L2 hit profile?
+    o_popL1RequestQueue;
+}
+transition(FM, {GetS, GetInstr, GetX}, FW) {
+    ffm_forwardforwardmodifiedDataToCache;
+    //ct_copydataTBE;
+    //mr_setMRU;
+    dc_deallocateL2CacheBlock;
+    gr_registerGet;
+    //uu_profileMiss; // TODO: want to change this to an L2 hit profile?
+    o_popL1RequestQueue;
+}
+transition({I, FM, M, W, WD, WR, WDC, WCF, FW, WB}, DACK) {
+    od_popIncomingDataResponseQueue;
+}
+// transition({M, FM}, {GetS, GetInstr, GetX}, WB) {
+//     ss_allocateTBE;
+//     c_writebackData;
+//     dc_deallocateL2CacheBlock;
+// }
+transition(FW, {GetS, GetInstr, GetX}) {
+    rq_recycleRequestQueue;
+}
+transition({FW, FM, M}, {Data, Data_Final}) {
+    oo_popIncomingResponseQueue;
+}
+transition(FW, Cncl, WCF) {
+    ax_ackAndTransfer;
+    o_popL1RequestQueue;
+}
+transition(FW, Cncl_Final, I) {
+    aa_sendAck;
+    s_deallocateTBE;
+    o_popL1RequestQueue;
+}
+transition(FW, Cncl_No_Conflict, WR) {
+    at_sendAckOrTransfer;
+    o_popL1RequestQueue;
+}
+// L2_Replacement
+transition({M, FM}, L2_Replacement, WB) {
+    ss_allocateTBE;
+    c_writebackData;
+    dc_deallocateL2CacheBlock;
+}
+// transition(I, L2_Replacement) {
+//     dc_deallocateL2CacheBlock;
+// }
+//
+// transition({W, WD, WR, WDC, WCF, FW}, L2_Replacement) {
+//     rq_recycleRequestQueue;
+// }
+transition(WB, Mem_Ack, I) {
+    s_deallocateTBE;
+    oo_popIncomingResponseQueue;
+}
+    transition(WB, {GetS, GetInstr, GetX}) {
+        rq_recycleRequestQueue;
+}
+    // transition(WB, Mem_Ack, I) {
+    //     wa_sendWBAck;
+    //     s_deallocateTBE;
+    //     oo_popIncomingResponseQueue;
+    // }
+    // transition(WB, {GetS, GetInstr, GetX}) {
+    //     rq_recycleRequestQueue;
+    // }
+    // transition({W, WR}, WB_Data, WBW) {
+    //     c_writebackData;
+    //     r_recordWB;
+    //     rd_requestStoreDataTBE;
+    //     o_popL1RequestQueue;
+    // }
+    transition({W, WR}, {DataM, DataFM}, WR) {
+        rd_requestStoreDataTBE;
+        r_recordWB;
+        wa_sendWBAck;
+        o_popL1RequestQueue;
+}
+    // transition(WBW, {GetS, GetInstr, GetX, Read, Read_Final,
+Read_No_Conflict, Cncl, Cncl_Final, Cncl_No_Conflict}) {
+    //     rq_recycleRequestQueue;
+    // }
+    // Have the data already from the WB_Data
+    // transition(WBW, Mem_Ack, WR) {
+    //     wa_sendWBAck;
+    //     oo_popIncomingResponseQueue;
+    // }
+    //
+    // transition(WBW, Data) {
+    //     oo_popIncomingResponseQueue;
+    // }
+// WBWCF
+    // transition(WCF, {DataF, DataFM}, WCF) {
+    //     rd_requestStoreDataTBE;
+    //     r_recordWB;
+    //     wa_sendWBAck;
+    //     o_popL1RequestQueue;
+    // }
+    // transition(WBWCF, {GetS, GetInstr, GetX, Read, Read_Final,
+Read_No_Conflict, Cncl, Cncl_Final, Cncl_No_Conflict}) {
+    //     rq_recycleRequestQueue;
+    // }
+    // Have the data already from the WB_Data
+    // transition(WBWCF, Mem_Ack, WCF) {
+    //     wa_sendWBAck;
+    //     oo_popIncomingResponseQueue;
+    // }
+    //
+    // transition(WBWCF, Data) {
+    //     oo_popIncomingResponseQueue;
+    // }
+    // Because of the WBW -> WR transition, could get data in WR
+    transition(WR, {Data, Data_Final}) {
+        oo_popIncomingResponseQueue;
+    }
+    transition(WB, Data_Final) {
+        oo_popIncomingResponseQueue;
+}
+transition(W, {Read_Final, Read_No_Conflict}, WD) {
+    rr_recordRead;
+    o_popL1RequestQueue;
+}
+transition(W, Cncl_Final, I) {
+    aa_sendAck;
+    s_deallocateTBE;
+    o_popL1RequestQueue;
+}
+transition(W, Cncl_No_Conflict) {
+   aa_sendAck;
+   o_popL1RequestQueue;
+}
+transition(W, {Data, Data_Final}, WR) {
+    d_storeDataTBE;
+    oo_popIncomingResponseQueue;
+}
+// Requests left to be issued, get line agian
+transition(WD, Data, W) {
+    d_storeDataTBE;
+    f_forwardDataToCache;
+    a_issueFetchToMemory;
+    oo_popIncomingResponseQueue;
+}
+transition(WD, Data_Final, I) {
+    d_storeDataTBE;
+    f_forwardDataToCache;
+    s_deallocateTBE;
+    oo_popIncomingResponseQueue;
+}
+transition(WR, Read_Final, I) {
+    rr_recordRead;
+    f_forwardDataToCache;
+    s_deallocateTBE;
+    o_popL1RequestQueue;
+}
+// transition(WR, Read_No_Conflict, WD) {
+//     rr_recordRead;
+//     a_issueFetchToMemory;
+//     o_popL1RequestQueue;
+// }
+transition(WR, Read_No_Conflict) {
+    rr_recordRead;
+    f_forwardDataToCache;
+    o_popL1RequestQueue;
+}
+transition(WR, Cncl_Final, I) {
+    aa_sendAck;
+    s_deallocateTBE;
+    o_popL1RequestQueue;
+}
+transition(WR, Cncl_No_Conflict) {
+    at_sendAckOrTransfer;
+    o_popL1RequestQueue;
+}
+// Conflicting transitions
+transition(WD, Cncl, WCF) {
+    ax_ackAndTransfer;
+    o_popL1RequestQueue;
+}
+// Should never occur
+/*transition(WD, Read, WDC) {
+    rr_recordRead;
+    o_popL1RequestQueue;
+    transition(WR, Cncl, WCF) {
+        ax_ackAndTransfer;
+        o_popL1RequestQueue;
+}
+    transition(WR, Read, WCF) {
+        dx_dataAndTransfer;
+        o_popL1RequestQueue;
+}
+    // TODO: I think it is fine to NOT transfer to WC here
+    transition(W, {GetS, GetInstr, GetX}) {
+        gr_registerGet;
+        di_sendIACKToRequestor;
+        uu_profileMiss;
+        o_popL1RequestQueue;
+}
+    transition(W, Cncl, WCF) {
+        ax_ackAndTransfer;
+        o_popL1RequestQueue;
+}
+    transition(W, Read, WDC) {
+        rr_recordRead;
+        o_popL1RequestQueue;
+    }
+    transition(WD, {GetS, GetInstr, GetX}) {
+        gr_registerGet;
+        di_sendIACKToRequestor;
+        uu_profileMiss;
+        o_popL1RequestQueue;
+    }
+    transition(WR, {GetS, GetInstr, GetX}) {
+    gr_registerGet;
+    di_sendIACKToRequestor;
+    uu_profileMiss;
+    o_popL1RequestQueue;
+}
+/*transition(WRC, {GetS, GetInstr, GetX}) {
+    di_sendIACKToRequestor;
+    o_popL1RequestQueue;
+}*/
+transition(WDC, {GetS, GetInstr, GetX}) {
+    gr_registerGet;
+    di_sendIACKToRequestor;
+    uu_profileMiss;
+    o_popL1RequestQueue;
+}
+// A solution here is to sent a wait transfer request
+transition(WDC, Read_Delay) {
+    rq_recycleRequestQueue;
+}
+transition(WDC, {Data, Data_Final}, WCF) {
+    d_storeDataTBE;
+    tdx_dataAndTransferFromTBE;
+    oo_popIncomingResponseQueue;
+}
+/*transition(WRC, Read, WCF) {
+    dx_dataAndTransfer;
+    o_popL1RequestQueue;
+}*/
+/*transition(WRC, Cncl, WCF) {
+    ax_ackAndTransfer;
+    o_popL1RequestQueue;
+}*/
+transition(WCF, {GetS, GetInstr, GetX}) {
+    gr_registerGet;
+    di_sendIACKToRequestor;
+    uu_profileMiss;
+    o_popL1RequestQueue;
+}
+transition(WCF, {Data, Data_Final}) {
+    oo_popIncomingResponseQueue;
+}
+transition(WCF, Read) {
+    wx_sendWaitAndTransfer;
+    o_popL1RequestQueue;
+}
+transition(WCF, Read_Final, I) {
+    w_sendWait;
+    s_deallocateTBE;
+    o_popL1RequestQueue;
+}
+transition(WCF, Read_No_Conflict, W) {
+    w_sendWait;
+    a_issueFetchToMemory;
+    o_popL1RequestQueue;
+}
+transition(WCF, Read_Delay) {
+    rq_recycleRequestQueue;
+}
+transition(WCF, Cncl) {
+    ax_ackAndTransfer;
+    o_popL1RequestQueue;
+}
+transition(WCF, Cncl_Final, I) {
+    aa_sendAck;
+        s_deallocateTBE;
+        o_popL1RequestQueue;
+    }
+    transition(WCF, Cncl_No_Conflict, W) {
+        aa_sendAck;
+        a_issueFetchToMemory;
+        o_popL1RequestQueue;
+    }
+}

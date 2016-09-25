@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/../../IR_project/Project1/.idea/Project1.iml" filepath="$PROJECT_DIR$/../../IR_project/Project1/.idea/Project1.iml" />
+      <module fileurl="file://$PROJECT_DIR$/Pycharm/.idea/Pycharm.iml" filepath="$PROJECT_DIR$/Pycharm/.idea/Pycharm.iml" />
+      <module fileurl="file://$USER_HOME$/Downloads/ECEN676/Project/gem5-ECEN676/.idea/gem5-ECEN676.iml" filepath="$USER_HOME$/Downloads/ECEN676/Project/gem5-ECEN676/.idea/gem5-ECEN676.iml" />
+      <module fileurl="file://$USER_HOME$/Downloads/ECEN676/Project/gems-2.1.1/.idea/gems-2.1.1.iml" filepath="$USER_HOME$/Downloads/ECEN676/Project/gems-2.1.1/.idea/gems-2.1.1.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../../IR_project/pysolr-3.4.0/.idea/pysolr-3.4.0.iml" filepath="$PROJECT_DIR$/../../IR_project/pysolr-3.4.0/.idea/pysolr-3.4.0.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/python.iml" filepath="$PROJECT_DIR$/.idea/python.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../../IR_project/solr-5.5.0/.idea/solr-5.5.0.iml" filepath="$PROJECT_DIR$/../../IR_project/solr-5.5.0/.idea/solr-5.5.0.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../../IR_project/Project1/twitter_search_engine/.idea/twitter_search_engine.iml" filepath="$PROJECT_DIR$/../../IR_project/Project1/twitter_search_engine/.idea/twitter_search_engine.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../../IR_project/virtualenv2/.idea/virtualenv2.iml" filepath="$PROJECT_DIR$/../../IR_project/virtualenv2/.idea/virtualenv2.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../../IR_project/virtualenv_/.idea/virtualenv_.iml" filepath="$PROJECT_DIR$/../../IR_project/virtualenv_/.idea/virtualenv_.iml" />
+    </modules>
+  </component>
+</project>

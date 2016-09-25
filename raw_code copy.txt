@@ -1,0 +1,4976 @@
+
+	/*
+	* $Id: MOESI_CMP_token-dir.sm 1.6 05/01/19 15:48:35-06:00
+	mikem@royal16.cs.wisc.edu $
+	*/
+	/**
+	Modified by Andrew Hay (andrewh@cs.auckland.ac.nz), 2011
+	*/
+
+	115
+
+	machine(L1Cache, "MESIF protocol") {
+	// Message buffers: this node TO the network
+	MessageBuffer requestFromL1Cache, network="To", virtual_network="0",
+	ordered="false";
+	MessageBuffer responseFromL1Cache, network="To", virtual_network="1",
+	ordered="false";
+	MessageBuffer dataResponseFromL1Cache, network="To", virtual_network="4",
+	ordered="false";
+	// Message buffers: this node FROM the network
+	MessageBuffer requestToL1Cache, network="From", virtual_network="0",
+	ordered="false";
+	MessageBuffer responseToL1Cache, network="From", virtual_network="1",
+	ordered="false";
+	MessageBuffer dataResponseToL1Cache, network="From", virtual_network="4",
+	ordered="false";
+	// STATES
+	enumeration(State, desc="Cache states", default="L1Cache_State_I") {
+	// Base states
+	//NP,
+
+	"NP",
+
+	desc="Not Present";
+
+	I,
+
+	"I",
+
+	desc="Idle";
+
+	S,
+
+	"S",
+
+	desc="Shared";
+
+	E,
+
+	"E",
+
+	desc="Exclusive";
+
+	F,
+
+	"F",
+
+	desc="Forward";
+
+	M,
+
+	"M",
+
+	desc="Modified";
+
+	O,
+
+	"O",
+
+	desc="Forward+Modified, MESIF paper denotes this
+
+	as the ’FM’ state";
+	// Transient states I-M
+	IM,
+
+	"IM",
+
+	desc="Transiting to exclusive (then doing a
+
+	store), not all replies nor data";
+	IMH,
+
+	"IMH",
+
+	desc="Transiting to exclusive (then doing a
+
+	store), all replies but no data";
+	IMF,
+
+	"IMF",
+
+	desc="Modified forwarded - has data, not all
+
+	"IMFH",
+
+	desc="Modified forwarded - has data, all
+
+	replies";
+	IMFH,
+
+	116
+
+	APPENDIX A. LOCAL CACHE CONTROLLER SLICC CODE
+
+	replies";
+	// Conflicting states
+	IMC,
+
+	"IMC",
+
+	desc="IM but with conflicts";
+
+	IMHC,
+
+	"IMHC",
+
+	desc="IMH but with conflicts";
+
+	IMFC,
+
+	"IMFC",
+
+	desc="IMF but with conflicts";
+
+	IMFHC,
+
+	"IMFHC",
+
+	desc="IMFH but with conflicts";
+
+	IMWX,
+
+	"IMWX",
+
+	desc="All replies but home has told to wait for
+
+	data -- then transfer";
+	IMWC,
+
+	"IMWC",
+
+	desc="All replies but home has told to wait for
+
+	data";
+	// Transferring line states
+	EI,
+
+	"EI",
+
+	desc="Forwarded data, awaiting DACK";
+
+	MI,
+
+	"MI",
+
+	desc="Forwarded data, awaiting DACK";
+
+	FI,
+
+	"FI",
+
+	desc="Forwarded data, awaiting DACK";
+
+	OI,
+
+	"OI",
+
+	desc="Forwarded data, awaiting DACK";
+
+	ES,
+
+	"ES",
+
+	desc="Forwarded data, awaiting DACK";
+
+	MS,
+
+	"MS",
+
+	desc="Forwarded data, awaiting DACK";
+
+	FS,
+
+	"FS",
+
+	desc="Forwarded data, awaiting DACK";
+
+	OS,
+
+	"OS",
+
+	desc="Forwarded data, awaiting DACK";
+
+	WB,
+
+	"WB",
+
+	desc="Writing data back to memory on L1
+
+	replacement";
+	// Transient states I-S
+	IS,
+
+	"IS",
+
+	desc="Transiting to shared, not all replies nor
+
+	ISH,
+
+	"ISH",
+
+	desc="Transiting to shared, all replies, no
+
+	ISF,
+
+	"ISF",
+
+	desc="Transiting to shared, forwarded data, not
+
+	"ISFH",
+
+	desc="Transiting to shared, forwarded data, all
+
+	ISFM,
+
+	"ISFM",
+
+	desc="ISF but data is modified";
+
+	ISFMH,
+
+	"ISFMH",
+
+	desc="ISFH but data is modified";
+
+	data";
+	data";
+	all replies";
+	ISFH,
+	replies";
+
+	// Conflicting states - S, shared
+	ISC,
+
+	"ISC",
+
+	desc="IS but with conflicts";
+
+	ISHC,
+
+	"ISHC",
+
+	desc="ISH but with conflicts";
+
+	ISFC,
+
+	"ISFC",
+
+	desc="ISF but with conflicts";
+
+	117
+	ISFHC,
+
+	"ISFHC",
+
+	desc="ISFH but with conflicts";
+
+	ISFMC,
+
+	"ISFMC",
+
+	desc="ISFC but data is modified";
+
+	ISFMHC, "ISFMHC",
+
+	desc="ISFHC but data is modified";
+
+	ISWX,
+
+	desc="All replies but home has told to wait for
+
+	"ISWX",
+
+	data -- then transfer as forward";
+	ISWC,
+
+	"ISWC",
+
+	desc="All replies but home has told to wait for
+
+	data";
+	// Conflicting states - S, invalidating
+	ISCI,
+
+	"ISCI",
+
+	desc="ISC but must invalidate at the end";
+
+	ISHCI,
+
+	"ISHCI",
+
+	desc="ISHC but must invalidate at the end";
+
+	ISFCI,
+
+	"ISFCI",
+
+	desc="ISFC but must invalidate at the end";
+
+	ISFHCI, "ISFHCI",
+
+	desc="ISFHC but must invalidate at the end";
+
+	ISFMCI, "ISFMCI",
+
+	desc="ISFCI but data is modified";
+
+	ISFMHCI,"ISFMHCI",
+
+	desc="ISFHCI but data is modified";
+
+	ISECI,
+
+	desc="ISFCI but forwarded in state E";
+
+	"ISECI",
+
+	ISEHCI, "ISEHCI",
+
+	desc="ISFHCI but forwarded in state E";
+
+	ISMCI,
+
+	desc="ISFCI but forwarded in state M";
+
+	"ISMCI",
+
+	ISMHCI, "ISMHCI",
+
+	desc="ISFHCI but forwarded in state M";
+
+	ISWXI,
+
+	desc="ISWX but must invalidate at the end";
+
+	"ISWXI",
+
+	// Transient states F-M
+	FM,
+
+	"FM",
+
+	desc="Transiting to exclusive, not all replies";
+
+	FMH,
+
+	"FMH",
+
+	desc="Transiting to exclusive, all replies";
+
+	// Conflicting states - invalidating
+	FMC,
+
+	"FMC",
+
+	desc="FM but with conflicts";
+
+	FMHC,
+
+	"FMHC",
+
+	desc="FMH but with conflicts";
+
+	// Transient states Owned/Forward to M
+	WR,
+
+	"WR",
+
+	desc="Transiting to exclusive, not all replies --
+
+	already had the forward state";
+	WRH,
+
+	"WRH",
+
+	desc="Transiting to exclusive, all replies --
+
+	already had the forward state";
+	}
+	// EVENTS
+
+	118
+
+	APPENDIX A. LOCAL CACHE CONTROLLER SLICC CODE
+	enumeration(Event, desc="Cache events") {
+	Load,
+
+	desc="Load request from the processor";
+
+	Store,
+
+	desc="Store request from the processor";
+
+	Ifetch,
+
+	desc="Instruction fetch request from the processor";
+
+	L1_Replacement, desc="L1 replacement";
+	WB_Ack,
+
+	desc="Ack from L2, write back successful";
+
+	Fwd_GETX,
+
+	desc="GETX from other processor";
+
+	Fwd_GETS,
+
+	desc="GETS from other processor";
+
+	Fwd_GET_INSTR,
+
+	desc="GET_INSTR from other processor";
+
+	Fwd_Recycle,
+
+	desc="GET from other processor, must be recycled as
+
+	this is the second one in the same request";
+	IACK,
+
+	desc="Acknowledgement of request, invalid state";
+
+	IACK_Final,
+
+	desc="Final acknowledgement of request, invalid
+
+	SACK,
+
+	desc="Acknowledgement of request, shared state";
+
+	SACK_Final,
+
+	desc="Final acknowledgement of request, shared
+
+	DACK,
+
+	desc="Data acknowledgement, can now respond to other
+
+	state";
+
+	state";
+	requests";
+	DataF,
+
+	desc="Received shared data from a cache";
+
+	DataF_Final,
+
+	desc="Received shared data from a cache, no more acks
+
+	needed";
+	DataFM,
+
+	desc="Received forwarded/modified data from a cache";
+
+	DataFM_Final,
+
+	desc="Received forwarded/modified data from a cache,
+
+	no more acks needed";
+	DataE,
+
+	desc="Received exclusive data from a cache";
+
+	DataE_Final,
+
+	desc="Received exclusive data from a cache, no more
+
+	acks needed";
+	DataM,
+
+	desc="Received modified data from a cache";
+
+	DataM_Final,
+
+	desc="Received modified data from a cache, no more
+
+	acks needed";
+	//TxnF,
+
+	desc="Received transferred shared data from a
+
+	//TxnFM,
+
+	desc="Received transferred forwarded/modified data
+
+	cache";
+
+	119
+	from a cache";
+	//TxnE,
+
+	desc="Received transferred exclusive data from a
+
+	//TxnM,
+
+	desc="Received transferred modified data from a
+
+	cache";
+	cache";
+	Extra_Fwd_GETX,
+
+	desc="GETX from processor we are transferring
+
+	Extra_Fwd_GETS,
+
+	desc="GETS from processor we are transferring
+
+	Extra_Fwd_GET_INSTR,
+
+	desc="GET_INSTR from processor we are
+
+	to";
+	to";
+	transferring to";
+	DataE_Home,
+
+	desc="Received exclusive data from home";
+
+	Ack_Home,
+
+	desc="Received Ack from home";
+
+	Conflict,
+
+	desc="Conflict message received";
+
+	Conflict_Final, desc="Conflict message received, no more acks
+	needed";
+	Transfer,
+
+	desc="Ack from home and Transfer to another node";
+
+	Data_Transfer,
+
+	desc="Data from home and Transfer to anther node";
+
+	Wait,
+
+	desc="Wait for data";
+
+	Wait_Transfer,
+
+	desc="Wait for data and then Transfer to another
+
+	node";
+	//Extra_Request,
+
+	desc="Triggered when a getX/S is received but we
+
+	are already transferring to that node";
+	}
+	// Internal types
+	// CacheEntry
+	structure(Entry, desc="...", interface="AbstractCacheEntry") {
+	State CacheState,
+
+	desc="cache state";
+
+	bool Dirty,
+
+	desc="Is the data dirty (different than
+
+	memory)?";
+	DataBlock DataBlk,
+	}
+
+	desc="data for the block";
+
+	120
+
+	APPENDIX A. LOCAL CACHE CONTROLLER SLICC CODE
+	// TBE fields
+	structure(TBE, desc="...") {
+	Address Address,
+	State TBEState,
+
+	desc="Physical address for this TBE";
+	desc="Transient state";
+
+	DataBlock DataBlk,
+
+	desc="Buffer for the data block";
+
+	bool Dirty, default="false",
+	PrefetchBit Prefetch,
+
+	desc="data is dirty";
+
+	desc="Set if this was caused by a
+
+	prefetch";
+	MachineID L1_FwdData,
+
+	desc="ID of the L1 cache that forwarded
+
+	data to us.";
+	MachineID TransferMachine,
+
+	desc="ID of the L1 cache that we
+
+	should transfer the data to when we get it";
+	//int PendingAcks, default="0", desc="number of pending acks";
+	NetDest PendingAcks,
+
+	desc="The set of machines that has
+
+	sent acks";
+	AccessModeType AccessMode,
+
+	desc="user/supervisor access type";
+
+	MachineIDset ConflictMachs, desc="Stores the first machine to conflict
+	with this one if in a conflict";
+	MachineIDset RequestMach, desc="Stores the machines that have sent a
+	request to this machine already";
+	}
+	// External types
+	external_type(CacheMemory) {
+	bool cacheAvail(Address);
+	Address cacheProbe(Address);
+	void allocate(Address);
+	void deallocate(Address);
+	Entry lookup(Address);
+	void changePermission(Address, AccessPermission);
+	bool isTagPresent(Address);
+	}
+	external_type(TBETable) {
+	TBE lookup(Address);
+	void allocate(Address);
+	void deallocate(Address);
+	bool isPresent(Address);
+
+	121
+	}
+	// global variables
+	TBETable L1_TBEs, template_hack="<L1Cache_TBE>";
+	CacheMemory L1IcacheMemory, template_hack="<L1Cache_Entry>",
+	constructor_hack=’L1_CACHE_NUM_SETS_BITS,L1_CACHE_ASSOC,MachineType_L1Cache,in
+	t_to_string(i)+"_L1I"’,
+	abstract_chip_ptr="true";
+	CacheMemory L1DcacheMemory, template_hack="<L1Cache_Entry>",
+	constructor_hack=’L1_CACHE_NUM_SETS_BITS,L1_CACHE_ASSOC,MachineType_L1Cache,in
+	t_to_string(i)+"_L1D"’,
+	abstract_chip_ptr="true";
+	MessageBuffer mandatoryQueue, ordered="false", abstract_chip_ptr="true";
+	Sequencer sequencer, abstract_chip_ptr="true", constructor_hack="i";
+	// Functions
+	Entry getL1CacheEntry(Address addr), return_by_ref="yes" {
+	if (L1DcacheMemory.isTagPresent(addr)) {
+	return L1DcacheMemory[addr];
+	}
+	else {
+	return L1IcacheMemory[addr];
+	}
+	}
+
+	Event mandatory_request_type_to_event(CacheRequestType type) {
+	if (type == CacheRequestType:LD) {
+	return Event:Load;
+	} else if (type == CacheRequestType:IFETCH) {
+	return Event:Ifetch;
+	} else if ((type == CacheRequestType:ST) || (type ==
+	CacheRequestType:ATOMIC)) {
+
+	122
+
+	APPENDIX A. LOCAL CACHE CONTROLLER SLICC CODE
+	return Event:Store;
+	} else {
+	error("Invalid CacheRequestType");
+	}
+	}
+	void changeL1Permission(Address addr, AccessPermission permission) {
+	if (L1DcacheMemory.isTagPresent(addr)) {
+	return L1DcacheMemory.changePermission(addr, permission);
+	}
+	else if(L1IcacheMemory.isTagPresent(addr)) {
+	return L1IcacheMemory.changePermission(addr, permission);
+	}
+	else {
+	error("cannot change permission, L1 block not present");
+	}
+	}
+	bool isL1CacheTagPresent(Address addr) {
+	return (L1DcacheMemory.isTagPresent(addr) ||
+
+	L1IcacheMemory.isTagPresent(addr));
+	}
+
+	void setState(Address addr, State state) {
+	assert((L1DcacheMemory.isTagPresent(addr) &&
+	L1IcacheMemory.isTagPresent(addr)) == false);
+	// MUST CHANGE
+	if(L1_TBEs.isPresent(addr)) {
+	L1_TBEs[addr].TBEState := state;
+	}
+	if (isL1CacheTagPresent(addr)) {
+	getL1CacheEntry(addr).CacheState := state;
+	// Set permission
+	if (state == State:I) {
+	changeL1Permission(addr, AccessPermission:Invalid);
+
+	123
+	}
+	//TODO: why is E read only?
+	else if (state == State:S || state == State:F || state ==
+	State:E) {
+	changeL1Permission(addr, AccessPermission:Read_Only);
+	}
+	else if (state == State:M) {
+	changeL1Permission(addr, AccessPermission:Read_Write);
+	}
+	else {
+	changeL1Permission(addr, AccessPermission:Busy);
+	}
+	}
+	}
+	State getState(Address addr) {
+	if((L1DcacheMemory.isTagPresent(addr) &&
+	L1IcacheMemory.isTagPresent(addr)) == true){
+	DEBUG_EXPR(id);
+	DEBUG_EXPR(addr);
+	}
+	assert((L1DcacheMemory.isTagPresent(addr) &&
+	L1IcacheMemory.isTagPresent(addr)) == false);
+	if(L1_TBEs.isPresent(addr)) {
+	return L1_TBEs[addr].TBEState;
+	}
+	else if (isL1CacheTagPresent(addr)) {
+	return getL1CacheEntry(addr).CacheState;
+	}
+	return State:I;
+	}
+	void registerReply(Address addr, MachineID sender) {
+	L1_TBEs[addr].PendingAcks.add(sender);
+	}
+	// Includes the current ack as well (since registerReply is called first)
+	bool acksRemaining(Address addr) {
+
+	124
+
+	APPENDIX A. LOCAL CACHE CONTROLLER SLICC CODE
+	return L1_TBEs[addr].PendingAcks.count() < numberOfL1Cache(); // less
+
+	than number of other L1’s + L2
+	}
+	void whoSentThis(MachineID m, ResponseMsg msg, int param) {
+	}
+	bool alreadySeenRequestingNode(Address addr, MachineID m) {
+	if (L1_TBEs.isPresent(addr)) {
+	return L1_TBEs[addr].RequestMach.contains(m);
+	}
+	else {
+	return false;
+	}
+	}
+
+	// Returns true if this is a post transfer intermediate state.
+	bool transferstate(State s) {
+	return s == State:MI || s == State:IMWC || s == State:IMWX || s ==
+	State:FS || s == State:OS || s == State:ISWC ||
+	s == State:ISWX || s == State:ISWXI || s == State:FI || s ==
+	State:OI || s == State:EI || s == State:MS ||
+	s == State:ES;
+	}
+	// Out ports
+	out_port(requestNetwork_out, RequestMsg, requestFromL1Cache);
+	out_port(responseNetwork_out, RequestMsg, responseFromL1Cache);
+	out_port(dataResponseNetwork_out, RequestMsg, dataResponseFromL1Cache);
+	// In ports
+	// It’s important to handle requests from other caches before own
+	requests for correctness.
+	// Basically, because when going from a MI or similar state to I, those
+	buffered requests MUST be dealt
+
+	125
+	// with before dealing with a load or store (screws up the conflict
+	reporting stuff)
+	in_port(requestNetwork_in, RequestMsg, requestToL1Cache) {
+	if (requestNetwork_in.isReady()) {
+	peek(requestNetwork_in, RequestMsg) {
+	assert(in_msg.Destination.isElement(machineID));
+	// Check if this request is in fact being forfilled by a
+	transfer, if so, remove it from the queue.
+	/*if (L1_TBEs.isPresent(in_msg.Address) &&
+	L1_TBEs[in_msg.Address].TransferMachine !=
+	machineID &&
+	L1_TBEs[in_msg.Address].TransferMachine ==
+	in_msg.Requestor) {
+	trigger(Event:Extra_Request, in_msg.Address);
+	}*/
+	if (L1_TBEs.isPresent(in_msg.Address) &&
+	L1_TBEs[in_msg.Address].TransferMachine !=
+	machineID &&
+	L1_TBEs[in_msg.Address].TransferMachine ==
+	in_msg.Requestor) {
+	if (in_msg.Type == CoherenceRequestType:GETX) {
+	trigger(Event:Extra_Fwd_GETX, in_msg.Address);
+	}
+	else if (in_msg.Type == CoherenceRequestType:GETS) {
+	trigger(Event:Extra_Fwd_GETS, in_msg.Address);
+	}
+	else if (in_msg.Type == CoherenceRequestType:GET_INSTR) {
+	trigger(Event:Extra_Fwd_GET_INSTR, in_msg.Address);
+	}
+	}
+	else if (in_msg.Type == CoherenceRequestType:GETX) {
+	// upgrade transforms to GETX due to race
+	if (alreadySeenRequestingNode(in_msg.Address,
+	in_msg.Requestor)) {
+	trigger(Event:Fwd_Recycle, in_msg.Address);
+	}
+	else {
+	trigger(Event:Fwd_GETX, in_msg.Address);
+
+	126
+
+	APPENDIX A. LOCAL CACHE CONTROLLER SLICC CODE
+	}
+	}
+	else if (in_msg.Type == CoherenceRequestType:GETS) {
+	if (alreadySeenRequestingNode(in_msg.Address,
+
+	in_msg.Requestor)) {
+	trigger(Event:Fwd_Recycle, in_msg.Address);
+	}
+	else {
+	trigger(Event:Fwd_GETS, in_msg.Address);
+	}
+	}
+	else if (in_msg.Type == CoherenceRequestType:GET_INSTR) {
+	if (alreadySeenRequestingNode(in_msg.Address,
+	in_msg.Requestor)) {
+	trigger(Event:Fwd_Recycle, in_msg.Address);
+	}
+	else {
+	trigger(Event:Fwd_GET_INSTR, in_msg.Address);
+	}
+	}
+	else {
+	error("Invalid forwarded request type");
+	}
+	}
+	}
+	}
+	in_port(mandatoryQueue_in, CacheMsg, mandatoryQueue, desc="...") {
+	if (mandatoryQueue_in.isReady()) {
+	peek(mandatoryQueue_in, CacheMsg) {
+	if (in_msg.Type == CacheRequestType:IFETCH) {
+	// Check to see if it is in the OTHER L1
+	if (L1DcacheMemory.isTagPresent(in_msg.Address)) {
+	// The block is in the wrong L1, put the request on
+	the queue to the shared L2
+	trigger(Event:L1_Replacement, in_msg.Address);
+
+	127
+	}
+	if (L1IcacheMemory.isTagPresent(in_msg.Address)) {
+	// The tag matches for the L1, so the L1 asks the L2
+	for it.
+	trigger(mandatory_request_type_to_event(in_msg.Type),
+	in_msg.Address);
+	}
+	else {
+	if (L1IcacheMemory.cacheAvail(in_msg.Address)) {
+	// L1 does’t have the line, but we have space for
+	it in the L1 so let’s see if the L2 has it
+	trigger(mandatory_request_type_to_event(in_msg.Type), in_msg.Address);
+	}
+	else {
+	// No room in the L1, so we need to make room in
+	the L1
+	trigger(Event:L1_Replacement,
+	L1IcacheMemory.cacheProbe(in_msg.Address));
+	}
+	}
+	}
+	// Data Access
+	else {
+	if (L1DcacheMemory.isTagPresent(in_msg.Address)) {
+	// The tag matches for the L1, so the L1 fetches the
+	line.
+
+	We know it can’t be in the L2 due to exclusion
+	trigger(mandatory_request_type_to_event(in_msg.Type),
+
+	in_msg.Address);
+	} else {
+	if (L1DcacheMemory.cacheAvail(in_msg.Address)) {
+	// L1 does’t have the line, but we have space for it
+	in the L1
+	trigger(mandatory_request_type_to_event(in_msg.Type), in_msg.Address);
+	} else {
+	// No room in the L1, so we need to make room
+	trigger(Event:L1_Replacement,
+	L1DcacheMemory.cacheProbe(in_msg.Address));
+
+	128
+
+	APPENDIX A. LOCAL CACHE CONTROLLER SLICC CODE
+	}
+	}
+	}
+	}
+	}
+	}
+
+	in_port(responseNetwork_in, ResponseMsg, responseToL1Cache) {
+	if (responseNetwork_in.isReady()) {
+	peek(responseNetwork_in, ResponseMsg) {
+	assert(in_msg.Destination.isElement(machineID));
+
+	if (in_msg.SenderMachine == MachineType:L1Cache) {
+	if (in_msg.Type == CoherenceResponseType:IACK) {
+	registerReply(in_msg.Address, in_msg.Sender);
+	whoSentThis(in_msg.Sender, in_msg,
+	L1_TBEs[in_msg.Address].PendingAcks.count());
+	if (acksRemaining(in_msg.Address)) {
+	trigger(Event:IACK, in_msg.Address);
+	}
+	else {
+	trigger(Event:IACK_Final, in_msg.Address);
+	}
+	}
+	else if (in_msg.Type == CoherenceResponseType:SACK) {
+	registerReply(in_msg.Address, in_msg.Sender);
+	if (acksRemaining(in_msg.Address)) {
+	trigger(Event:SACK, in_msg.Address);
+	}
+	else {
+	trigger(Event:SACK_Final, in_msg.Address);
+	}
+	}
+
+	129
+	else if (in_msg.Type == CoherenceResponseType:Conflict) {
+	registerReply(in_msg.Address, in_msg.Sender);
+	if (acksRemaining(in_msg.Address)) {
+	trigger(Event:Conflict, in_msg.Address);
+	}
+	else {
+	trigger(Event:Conflict_Final, in_msg.Address);
+	}
+	}
+	}
+	else if (in_msg.SenderMachine == MachineType:L2Cache) {
+	if (in_msg.Type == CoherenceResponseType:DataF_E) {
+	trigger(Event:DataE_Home, in_msg.Address);
+	}
+	else if (in_msg.Type == CoherenceResponseType:ACK) {
+	trigger(Event:Ack_Home, in_msg.Address);
+	}
+	else if (in_msg.Type == CoherenceResponseType:XFR) {
+	trigger(Event:Transfer, in_msg.Address);
+	}
+	else if (in_msg.Type == CoherenceResponseType:DXFR) {
+	trigger(Event:Data_Transfer, in_msg.Address);
+	}
+	else if (in_msg.Type == CoherenceResponseType:Wait) {
+	trigger(Event:Wait, in_msg.Address);
+	}
+	else if (in_msg.Type == CoherenceResponseType:WaitXFR) {
+	trigger(Event:Wait_Transfer, in_msg.Address);
+	}
+	else if (in_msg.Type == CoherenceResponseType:MEMORY_ACK)
+	{
+	trigger(Event:WB_Ack, in_msg.Address);
+	}
+	// Home, being an L2 cache, also acts as a Node (a
+	passive one that makes no requests)
+	else if (in_msg.Type == CoherenceResponseType:IACK) {
+	registerReply(in_msg.Address, in_msg.Sender);
+
+	130
+
+	APPENDIX A. LOCAL CACHE CONTROLLER SLICC CODE
+	if (acksRemaining(in_msg.Address)) {
+	trigger(Event:IACK, in_msg.Address);
+	}
+	else {
+	trigger(Event:IACK_Final, in_msg.Address);
+	}
+	}
+	// else if (in_msg.Type ==
+
+	CoherenceResponseType:DataF_FM) {
+	//
+
+	if (acksRemaining(in_msg.Address)) {
+
+	//
+
+	trigger(Event:DataFM, in_msg.Address);
+
+	//
+
+	}
+
+	//
+
+	else {
+
+	//
+
+	trigger(Event:DataFM_Final, in_msg.Address);
+
+	//
+
+	}
+
+	// }
+	// else if (in_msg.Type == CoherenceResponseType:DataF_M)
+	{
+	//
+
+	if (acksRemaining(in_msg.Address)) {
+
+	//
+
+	trigger(Event:DataM, in_msg.Address);
+
+	//
+
+	}
+
+	//
+
+	else {
+
+	//
+
+	trigger(Event:DataM_Final, in_msg.Address);
+
+	//
+	//
+
+	}
+	}
+
+	}
+	}
+	}
+	}
+	// Data forward from L1 caches and DACKS
+	in_port(dataResponseNetwork_in, ResponseMsg, dataResponseToL1Cache) {
+	if (dataResponseNetwork_in.isReady()) {
+	peek(dataResponseNetwork_in, ResponseMsg) {
+	if (in_msg.Type == CoherenceResponseType:DataF_F ||
+	in_msg.Type == CoherenceResponseType:DataF_E ||
+	in_msg.Type == CoherenceResponseType:DataF_M ||
+
+	131
+	in_msg.Type == CoherenceResponseType:DataF_FM) {
+	registerReply(in_msg.Address, in_msg.Sender);
+	}
+	if (in_msg.Type == CoherenceResponseType:DataF_F ||
+	in_msg.Type == CoherenceResponseType:TxnF_F) {
+	if (acksRemaining(in_msg.Address)) {
+	trigger(Event:DataF, in_msg.Address);
+	}
+	else {
+	trigger(Event:DataF_Final, in_msg.Address);
+	}
+	}
+	else if (in_msg.Type == CoherenceResponseType:DataF_E ||
+	in_msg.Type == CoherenceResponseType:TxnF_E) {
+	if (acksRemaining(in_msg.Address)) {
+	trigger(Event:DataE, in_msg.Address);
+	}
+	else {
+	trigger(Event:DataE_Final, in_msg.Address);
+	}
+	}
+	else if (in_msg.Type == CoherenceResponseType:DataF_M ||
+	in_msg.Type == CoherenceResponseType:TxnF_M) {
+	if (acksRemaining(in_msg.Address)) {
+	trigger(Event:DataM, in_msg.Address);
+	}
+	else {
+	trigger(Event:DataM_Final, in_msg.Address);
+	}
+	}
+	else if (in_msg.Type == CoherenceResponseType:DataF_FM ||
+	in_msg.Type == CoherenceResponseType:TxnF_FM) {
+	if (acksRemaining(in_msg.Address)) {
+
+	132
+
+	APPENDIX A. LOCAL CACHE CONTROLLER SLICC CODE
+	trigger(Event:DataFM, in_msg.Address);
+	}
+	else {
+	trigger(Event:DataFM_Final, in_msg.Address);
+	}
+	}
+	else if (in_msg.Type == CoherenceResponseType:DACK) {
+	trigger(Event:DACK, in_msg.Address);
+	}
+	else {
+	assert(false);
+	}
+	}
+	}
+	}
+	// Events
+	action(a_issueGETS, "a", desc="Issue GETS") {
+	peek(mandatoryQueue_in, CacheMsg) {
+	// Make a normal request to the home/L2 cache.
+	enqueue(requestNetwork_out, RequestMsg,
+
+	latency="L1_REQUEST_LATENCY") {
+	out_msg.Address := address;
+	out_msg.Type := CoherenceRequestType:GETS;
+	//out_msg.SenderMachine := MachineType:L1Cache;
+	out_msg.Requestor := machineID;
+	out_msg.Destination.add(map_L1CacheMachId_to_L2Cache(address,machineID));
+	out_msg.MessageSize := MessageSizeType:Control;
+	out_msg.Prefetch := in_msg.Prefetch;
+	out_msg.AccessMode := in_msg.AccessMode;
+	//out_msg.ConflictMachs := machineID;
+	}
+	// Broadcast request to L1 caches
+	enqueue(requestNetwork_out, RequestMsg,
+	latency="L1_REQUEST_LATENCY") {
+	out_msg.Address := address;
+
+	133
+	out_msg.Type := CoherenceRequestType:GETS;
+	//out_msg.SenderMachine := MachineType:L1Cache;
+	out_msg.Requestor := machineID;
+	out_msg.Destination := getOtherLocalL1IDs(machineID);
+	out_msg.MessageSize := MessageSizeType:Control;
+	out_msg.Prefetch := in_msg.Prefetch;
+	out_msg.AccessMode := in_msg.AccessMode;
+	}
+	}
+	}
+	action(b_issueGETX, "b", desc="Issue GETX") {
+	peek(mandatoryQueue_in, CacheMsg) {
+	// Make a normal request to the home/L2 cache.
+	enqueue(requestNetwork_out, RequestMsg,
+	latency="L1_REQUEST_LATENCY") {
+	out_msg.Address := address;
+	out_msg.Type := CoherenceRequestType:GETX;
+	//out_msg.SenderMachine := MachineType:L1Cache;
+	out_msg.Requestor := machineID;
+	out_msg.Destination.add(map_L1CacheMachId_to_L2Cache(address,machineID));
+	out_msg.MessageSize := MessageSizeType:Control;
+	out_msg.Prefetch := in_msg.Prefetch;
+	out_msg.AccessMode := in_msg.AccessMode;
+	//out_msg.ConflictMachs := machineID;
+	}
+	// Broadcast request to L1 caches
+	enqueue(requestNetwork_out, RequestMsg,
+	latency="L1_REQUEST_LATENCY") {
+	out_msg.Address := address;
+	out_msg.Type := CoherenceRequestType:GETX;
+	//out_msg.SenderMachine := MachineType:L1Cache;
+	out_msg.Requestor := machineID;
+	out_msg.Destination := getOtherLocalL1IDs(machineID);
+	out_msg.MessageSize := MessageSizeType:Control;
+	out_msg.Prefetch := in_msg.Prefetch;
+	out_msg.AccessMode := in_msg.AccessMode;
+
+	134
+
+	APPENDIX A. LOCAL CACHE CONTROLLER SLICC CODE
+	}
+	}
+	}
+	action(ai_issueGETINSTR, "ai", desc="Issue GETINSTR") {
+	peek(mandatoryQueue_in, CacheMsg) {
+	// Make a normal request to the home/L2 cache.
+	enqueue(requestNetwork_out, RequestMsg,
+
+	latency="L1_REQUEST_LATENCY") {
+	out_msg.Address := address;
+	out_msg.Type := CoherenceRequestType:GET_INSTR;
+	//out_msg.SenderMachine := MachineType:L1Cache;
+	out_msg.Requestor := machineID;
+	out_msg.Destination.add(map_L1CacheMachId_to_L2Cache(address,machineID));
+	out_msg.MessageSize := MessageSizeType:Control;
+	out_msg.Prefetch := in_msg.Prefetch;
+	out_msg.AccessMode := in_msg.AccessMode;
+	//out_msg.ConflictMachs := machineID;
+	}
+	// Broadcast request to L1 caches
+	enqueue(requestNetwork_out, RequestMsg,
+	latency="L1_REQUEST_LATENCY") {
+	out_msg.Address := address;
+	out_msg.Type := CoherenceRequestType:GET_INSTR;
+	//out_msg.SenderMachine := MachineType:L1Cache;
+	out_msg.Requestor := machineID;
+	out_msg.Destination := getOtherLocalL1IDs(machineID);
+	out_msg.MessageSize := MessageSizeType:Control;
+	out_msg.Prefetch := in_msg.Prefetch;
+	out_msg.AccessMode := in_msg.AccessMode;
+	}
+	}
+	}
+	action(c_sendCnclHome, "c", desc="Issue cancel to home") {
+	enqueue(requestNetwork_out, RequestMsg, latency="L1_REQUEST_LATENCY")
+	{
+
+	135
+	out_msg.Address := address;
+	out_msg.Type := CoherenceRequestType:CNCL;
+	//out_msg.SenderMachine := MachineType:L1Cache;
+	out_msg.Requestor := machineID;
+	out_msg.Destination.add(map_L1CacheMachId_to_L2Cache(address,machineID));
+	out_msg.MessageSize := MessageSizeType:Control;
+	out_msg.AccessMode := L1_TBEs[address].AccessMode;
+	out_msg.Prefetch := L1_TBEs[address].Prefetch;
+	out_msg.ConflictMachs := L1_TBEs[address].ConflictMachs;
+	}
+	}
+
+	action(d_sendReadHome, "d", desc="Issue read to home") {
+	enqueue(requestNetwork_out, RequestMsg, latency="L1_REQUEST_LATENCY")
+	{
+	out_msg.Address := address;
+	out_msg.Type := CoherenceRequestType:READ;
+	//out_msg.SenderMachine := MachineType:L1Cache;
+	out_msg.Requestor := machineID;
+	out_msg.Destination.add(map_L1CacheMachId_to_L2Cache(address,machineID));
+	out_msg.MessageSize := MessageSizeType:Control;
+	out_msg.AccessMode := L1_TBEs[address].AccessMode;
+	out_msg.Prefetch := L1_TBEs[address].Prefetch;
+	out_msg.ConflictMachs := L1_TBEs[address].ConflictMachs;
+	}
+	}
+	action(df_sendForwardDataToRequestor, "df", desc="send data to requestor
+	as forward") {
+	peek(requestNetwork_in, RequestMsg) {
+	enqueue(dataResponseNetwork_out, ResponseMsg,
+	latency="L2_RESPONSE_LATENCY") {
+	out_msg.Address := address;
+	out_msg.Type := CoherenceResponseType:DataF_F;
+	out_msg.SenderMachine := MachineType:L1Cache;
+	out_msg.DataBlk := getL1CacheEntry(address).DataBlk;
+
+	136
+
+	APPENDIX A. LOCAL CACHE CONTROLLER SLICC CODE
+	out_msg.Dirty := getL1CacheEntry(address).Dirty;
+	out_msg.Sender := machineID;
+	out_msg.Destination.add(in_msg.Requestor);
+	out_msg.MessageSize := MessageSizeType:Response_Data;
+	out_msg.SenderMachine := MachineType:L1Cache;
+	}
+	}
+	}
+	action(de_sendExclusiveDataToRequestor, "de", desc="send data to
+
+	requestor as exclusive") {
+	peek(requestNetwork_in, RequestMsg) {
+	enqueue(dataResponseNetwork_out, ResponseMsg,
+	latency="L2_RESPONSE_LATENCY") {
+	out_msg.Address := address;
+	out_msg.Type := CoherenceResponseType:DataF_E;
+	out_msg.SenderMachine := MachineType:L1Cache;
+	out_msg.DataBlk := getL1CacheEntry(address).DataBlk;
+	out_msg.Dirty := getL1CacheEntry(address).Dirty;
+	out_msg.Sender := machineID;
+	out_msg.Destination.add(in_msg.Requestor);
+	out_msg.MessageSize := MessageSizeType:Response_Data;
+	out_msg.SenderMachine := MachineType:L1Cache;
+	}
+	}
+	}
+	action(dm_sendModifiedDataToRequestor, "dm", desc="send data to requestor
+	as modified") {
+	peek(requestNetwork_in, RequestMsg) {
+	enqueue(dataResponseNetwork_out, ResponseMsg,
+	latency="L2_RESPONSE_LATENCY") {
+	out_msg.Address := address;
+	out_msg.Type := CoherenceResponseType:DataF_M;
+	out_msg.SenderMachine := MachineType:L1Cache;
+	out_msg.DataBlk := getL1CacheEntry(address).DataBlk;
+	out_msg.Dirty := getL1CacheEntry(address).Dirty;
+	out_msg.Sender := machineID;
+	out_msg.Destination.add(in_msg.Requestor);
+
+	137
+	out_msg.MessageSize := MessageSizeType:Response_Data;
+	out_msg.SenderMachine := MachineType:L1Cache;
+	}
+	}
+	}
+	action(dfm_sendForwardModifiedDataToRequestor, "dfm", desc="send data to
+	requestor as forwarded/modified") {
+	peek(requestNetwork_in, RequestMsg) {
+	enqueue(dataResponseNetwork_out, ResponseMsg,
+	latency="L2_RESPONSE_LATENCY") {
+	out_msg.Address := address;
+	out_msg.Type := CoherenceResponseType:DataF_FM;
+	out_msg.SenderMachine := MachineType:L1Cache;
+	out_msg.DataBlk := getL1CacheEntry(address).DataBlk;
+	out_msg.Dirty := getL1CacheEntry(address).Dirty;
+	out_msg.Sender := machineID;
+	out_msg.Destination.add(in_msg.Requestor);
+	out_msg.MessageSize := MessageSizeType:Response_Data;
+	out_msg.SenderMachine := MachineType:L1Cache;
+	}
+	}
+	}
+	action(di_sendIACKToRequestor, "di", desc="send IACK to requestor") {
+	peek(requestNetwork_in, RequestMsg) {
+	enqueue(responseNetwork_out, ResponseMsg,
+	latency="L1_REQUEST_LATENCY") {
+	out_msg.Address := address;
+	out_msg.Type := CoherenceResponseType:IACK;
+	out_msg.SenderMachine := MachineType:L1Cache;
+	out_msg.Dirty := false;
+	out_msg.Sender := machineID;
+	out_msg.Destination.add(in_msg.Requestor);
+	out_msg.MessageSize := MessageSizeType:Response_Control;
+	}
+	}
+	}
+
+	138
+
+	APPENDIX A. LOCAL CACHE CONTROLLER SLICC CODE
+	action(ds_sendSACKToRequestor, "ds", desc="send SACK to requestor") {
+	peek(requestNetwork_in, RequestMsg) {
+	enqueue(responseNetwork_out, ResponseMsg,
+
+	latency="L1_REQUEST_LATENCY") {
+	out_msg.Address := address;
+	out_msg.Type := CoherenceResponseType:SACK;
+	out_msg.SenderMachine := MachineType:L1Cache;
+	out_msg.Dirty := false;
+	out_msg.Sender := machineID;
+	out_msg.Destination.add(in_msg.Requestor);
+	out_msg.MessageSize := MessageSizeType:Response_Control;
+	}
+	}
+	}
+	action(dd_sendDACKToRequestor, "dd", desc="send DACK to forwarder") {
+	enqueue(dataResponseNetwork_out, ResponseMsg,
+	latency="L1_REQUEST_LATENCY") {
+	out_msg.Address := address;
+	out_msg.Type := CoherenceResponseType:DACK;
+	out_msg.SenderMachine := MachineType:L1Cache;
+	out_msg.Dirty := false;
+	out_msg.Sender := machineID;
+	out_msg.Destination.add(L1_TBEs[address].L1_FwdData);
+	out_msg.MessageSize := MessageSizeType:Response_Control;
+	}
+	}
+	action(sc_sendConflict, "sc", desc="Send conflict to requestor") {
+	peek(requestNetwork_in, RequestMsg) {
+	enqueue(responseNetwork_out, ResponseMsg,
+	latency="L1_REQUEST_LATENCY") {
+	out_msg.Address := address;
+	out_msg.Type := CoherenceResponseType:Conflict;
+	out_msg.SenderMachine := MachineType:L1Cache;
+	out_msg.Dirty := false;
+	out_msg.Sender := machineID;
+	out_msg.Destination.add(in_msg.Requestor);
+	out_msg.MessageSize := MessageSizeType:Response_Control;
+
+	139
+	}
+	}
+	}
+	action(tm_transferModified, "tm", desc="Transfers the data as modified
+	state - as ordered by home") {
+	enqueue(dataResponseNetwork_out, ResponseMsg,
+	latency="L2_RESPONSE_LATENCY") {
+	out_msg.Address := address;
+	out_msg.Type := CoherenceResponseType:TxnF_M;
+	out_msg.SenderMachine := MachineType:L1Cache;
+	out_msg.DataBlk := getL1CacheEntry(address).DataBlk;
+	out_msg.Dirty := getL1CacheEntry(address).Dirty;
+	out_msg.Sender := machineID;
+	out_msg.Destination.add(L1_TBEs[address].TransferMachine);
+	out_msg.MessageSize := MessageSizeType:Response_Data;
+	out_msg.SenderMachine := MachineType:L1Cache;
+	}
+	}
+	action(te_transferExclusive, "te", desc="Transfers the data as exclusive
+	state - as ordered by home") {
+	enqueue(dataResponseNetwork_out, ResponseMsg,
+	latency="L2_RESPONSE_LATENCY") {
+	out_msg.Address := address;
+	out_msg.Type := CoherenceResponseType:TxnF_E;
+	out_msg.SenderMachine := MachineType:L1Cache;
+	out_msg.DataBlk := getL1CacheEntry(address).DataBlk;
+	out_msg.Dirty := getL1CacheEntry(address).Dirty;
+	out_msg.Sender := machineID;
+	out_msg.Destination.add(L1_TBEs[address].TransferMachine);
+	out_msg.MessageSize := MessageSizeType:Response_Data;
+	out_msg.SenderMachine := MachineType:L1Cache;
+	}
+	}
+	action(tfm_transferForwardModified, "tfm", desc="Transfers the data as
+	forward/modified state - as ordered by home") {
+	enqueue(dataResponseNetwork_out, ResponseMsg,
+
+	140
+
+	APPENDIX A. LOCAL CACHE CONTROLLER SLICC CODE
+
+	latency="L2_RESPONSE_LATENCY") {
+	out_msg.Address := address;
+	out_msg.Type := CoherenceResponseType:TxnF_FM;
+	out_msg.SenderMachine := MachineType:L1Cache;
+	out_msg.DataBlk := getL1CacheEntry(address).DataBlk;
+	out_msg.Dirty := getL1CacheEntry(address).Dirty;
+	out_msg.Sender := machineID;
+	out_msg.Destination.add(L1_TBEs[address].TransferMachine);
+	out_msg.MessageSize := MessageSizeType:Response_Data;
+	out_msg.SenderMachine := MachineType:L1Cache;
+	}
+	}
+	action(tf_transferForward, "tf", desc="Transfers the data as forward
+	state - as ordered by home") {
+	enqueue(dataResponseNetwork_out, ResponseMsg,
+	latency="L2_RESPONSE_LATENCY") {
+	out_msg.Address := address;
+	out_msg.Type := CoherenceResponseType:TxnF_F;
+	out_msg.SenderMachine := MachineType:L1Cache;
+	out_msg.DataBlk := getL1CacheEntry(address).DataBlk;
+	out_msg.Dirty := getL1CacheEntry(address).Dirty;
+	out_msg.Sender := machineID;
+	out_msg.Destination.add(L1_TBEs[address].TransferMachine);
+	out_msg.MessageSize := MessageSizeType:Response_Data;
+	out_msg.SenderMachine := MachineType:L1Cache;
+	}
+	}
+	// action(g_issuePUTX, "g", desc="send data to the L2 cache") {
+	//
+
+	enqueue(requestNetwork_out, RequestMsg,
+
+	latency="L2_RESPONSE_LATENCY") {
+	//
+
+	out_msg.Address := address;
+
+	//
+
+	out_msg.Type := CoherenceRequestType:PUTX;
+
+	//
+
+	out_msg.DataBlk := getL1CacheEntry(address).DataBlk;
+
+	//
+
+	out_msg.Dirty := getL1CacheEntry(address).Dirty;
+
+	//
+
+	out_msg.Requestor:= machineID;
+
+	//
+
+	out_msg.Destination.add(map_L1CacheMachId_to_L2Cache(address,
+
+	machineID));
+
+	141
+	//
+
+	//if (getL1CacheEntry(address).Dirty) {
+
+	//
+
+	out_msg.MessageSize := MessageSizeType:Writeback_Data;
+
+	//
+
+	//}
+
+	//
+
+	//else {
+
+	//
+
+	//
+
+	out_msg.MessageSize :=
+
+	MessageSizeType:Writeback_Control;
+	//
+
+	//}
+
+	//
+
+	}
+
+	// }
+	action(gf_issueL2FowardModified, "gfm", desc="send data to the L2 cache
+	as forward modified") {
+	enqueue(requestNetwork_out, RequestMsg,
+	latency="L2_RESPONSE_LATENCY") {
+	out_msg.Address := address;
+	out_msg.Type := CoherenceRequestType:DataFM;
+	out_msg.DataBlk := getL1CacheEntry(address).DataBlk;
+	out_msg.Dirty := getL1CacheEntry(address).Dirty;
+	out_msg.Requestor:= machineID;
+	out_msg.Destination.add(map_L1CacheMachId_to_L2Cache(address,
+	machineID));
+	//if (getL1CacheEntry(address).Dirty) {
+	out_msg.MessageSize := MessageSizeType:Writeback_Data;
+	//}
+	//else {
+	//
+
+	out_msg.MessageSize := MessageSizeType:Writeback_Control;
+
+	//}
+	}
+	}
+	action(gm_issueL2Modified, "gm", desc="send data to the L2 cache as
+	modified") {
+	enqueue(requestNetwork_out, RequestMsg,
+	latency="L2_RESPONSE_LATENCY") {
+	out_msg.Address := address;
+	out_msg.Type := CoherenceRequestType:DataM;
+	out_msg.DataBlk := getL1CacheEntry(address).DataBlk;
+	out_msg.Dirty := getL1CacheEntry(address).Dirty;
+	out_msg.Requestor:= machineID;
+
+	142
+
+	APPENDIX A. LOCAL CACHE CONTROLLER SLICC CODE
+	out_msg.Destination.add(map_L1CacheMachId_to_L2Cache(address,
+
+	machineID));
+	//if (getL1CacheEntry(address).Dirty) {
+	out_msg.MessageSize := MessageSizeType:Writeback_Data;
+	//}
+	//else {
+	//
+
+	out_msg.MessageSize := MessageSizeType:Writeback_Control;
+
+	//}
+	}
+	}
+	action(h_load_hit, "h", desc="Notify sequencer the load completed.") {
+	DEBUG_EXPR(getL1CacheEntry(address).DataBlk);
+	sequencer.readCallback(address, getL1CacheEntry(address).DataBlk);
+	}
+	action(hh_store_hit, "\h", desc="Notify sequencer that store completed.")
+	{
+	DEBUG_EXPR(getL1CacheEntry(address).DataBlk);
+	sequencer.writeCallback(address, getL1CacheEntry(address).DataBlk);
+	getL1CacheEntry(address).Dirty := true;
+	}
+
+	action(i_allocateTBE, "i", desc="Allocate TBE") {
+	check_allocate(L1_TBEs);
+	L1_TBEs.allocate(address);
+	peek(mandatoryQueue_in, CacheMsg) {
+	L1_TBEs[address].Prefetch := in_msg.Prefetch;
+	}
+	L1_TBEs[address].Dirty := getL1CacheEntry(address).Dirty;
+	L1_TBEs[address].DataBlk := getL1CacheEntry(address).DataBlk;
+	// Signifies that there is no conflict -- yet
+	//L1_TBEs[address].ConflictingMachine := machineID;
+	// Signifies that we are not transferring to anyone
+	L1_TBEs[address].TransferMachine := machineID;
+	}
+	action(v_recordForwarder, "v", desc="Records which cache sent us the
+
+	143
+	data, so we can send a DACK") {
+	peek(dataResponseNetwork_in, ResponseMsg) {
+	L1_TBEs[address].L1_FwdData := in_msg.Sender;
+	}
+	}
+	/*action(v_responseRecordForwarder, "rv", desc="Records which cache sent
+	us the data, so we can send a DACK (From response network)") {
+	peek(responseNetwork_in, ResponseMsg) {
+	L1_TBEs[address].L1_FwdData := in_msg.Sender;
+	}
+	}*/
+	action(cr_recordConflictMachineRequest, "cr", desc="Records the
+	conflicting machine when the conflict is known from a request") {
+	peek(requestNetwork_in, RequestMsg) {
+	if (L1_TBEs[address].ConflictMachs.contains(in_msg.Requestor) ==
+	false) {
+	L1_TBEs[address].ConflictMachs.add(in_msg.Requestor);
+	}
+	if (L1_TBEs[address].RequestMach.contains(in_msg.Requestor) ==
+	false) {
+	L1_TBEs[address].RequestMach.add(in_msg.Requestor);
+	}
+	}
+	}
+	action(cc_recordConflictMachineResponse, "\c", desc="Records the
+	conflicting machine when the conflict is known from a response") {
+	peek(responseNetwork_in, ResponseMsg) {
+	if (L1_TBEs[address].ConflictMachs.contains(in_msg.Sender) ==
+	false) {
+	L1_TBEs[address].ConflictMachs.add(in_msg.Sender);
+	}
+	}
+	}
+	action(ct_recordTransferMachine, "ct", desc="Records the machine to
+	transfer the data to") {
+
+	144
+
+	APPENDIX A. LOCAL CACHE CONTROLLER SLICC CODE
+	peek(responseNetwork_in, ResponseMsg) {
+	L1_TBEs[address].TransferMachine := in_msg.Transfer;
+	}
+	}
+	action(o_popIncomingResponseQueue, "o", desc="Pop Incoming Response queue
+
+	and profile the delay within this virtual network") {
+	profileMsgDelay(1, responseNetwork_in.dequeue_getDelayCycles());
+	}
+	action(od_popIncomingDataResponseQueue, "od", desc="Pop Incoming Data
+	Response queue and profile the delay within this virtual network") {
+	profileMsgDelay(4, dataResponseNetwork_in.dequeue_getDelayCycles());
+	}
+	action(s_deallocateTBE, "s", desc="Deallocate TBE if it exists") {
+	if (L1_TBEs.isPresent(address)) {
+	L1_TBEs.deallocate(address);
+	}
+	}
+	action(u_writeDataToL1Cache, "u", desc="Write data to cache from
+	forwarded L1 data") {
+	peek(dataResponseNetwork_in, ResponseMsg) {
+	getL1CacheEntry(address).DataBlk := in_msg.DataBlk;
+	getL1CacheEntry(address).Dirty := in_msg.Dirty;
+	}
+	}
+	action(ru_responseWriteDataToL1Cache, "ru", desc="Write data to cache
+	from forwarded L1 data (From response network)") {
+	peek(responseNetwork_in, ResponseMsg) {
+	getL1CacheEntry(address).DataBlk := in_msg.DataBlk;
+	getL1CacheEntry(address).Dirty := in_msg.Dirty;
+	}
+	}
+	action(uu_writeHomeDataToL1Cache, "\u", desc="Write data to cache data
+	from Home") {
+
+	145
+	peek(responseNetwork_in, ResponseMsg) {
+	getL1CacheEntry(address).DataBlk := in_msg.DataBlk;
+	getL1CacheEntry(address).Dirty := in_msg.Dirty;
+	}
+	}
+	action(k_popMandatoryQueue, "k", desc="Pop mandatory queue.") {
+	mandatoryQueue_in.dequeue();
+	}
+	action(ff_deallocateL1CacheBlock, "\f", desc="Deallocate L1 cache block.
+	Sets the cache to not present, allowing a replacement in parallel with a
+	fetch.") {
+	if (L1DcacheMemory.isTagPresent(address)) {
+	L1DcacheMemory.deallocate(address);
+	} else {
+	L1IcacheMemory.deallocate(address);
+	}
+	}
+	action(l_popRequestQueue, "l", desc="Pop incoming request queue and
+	profile the delay within this virtual network") {
+	profileMsgDelay(0, requestNetwork_in.dequeue_getDelayCycles());
+	}
+	action(oo_allocateL1DCacheBlock, "\o", desc="Set L1 D-cache tag equal to
+	tag of block B.") {
+	if (L1DcacheMemory.isTagPresent(address) == false) {
+	L1DcacheMemory.allocate(address);
+	}
+	}
+	action(pp_allocateL1ICacheBlock, "\p", desc="Set L1 I-cache tag equal to
+	tag of block B.") {
+	if (L1IcacheMemory.isTagPresent(address) == false) {
+	L1IcacheMemory.allocate(address);
+	}
+	}
+
+	146
+
+	APPENDIX A. LOCAL CACHE CONTROLLER SLICC CODE
+	action(rr_recycleRequestQueue, "\r", desc="Send the head of the request
+
+	queue to the back of the queue.") {
+	requestNetwork_in.recycle();
+	}
+	action(zz_recycleMandatoryQueue, "\z", desc="Send the head of the
+	mandatory queue to the back of the queue.") {
+	mandatoryQueue_in.recycle();
+	}
+	// Transitions
+	transition({IM, IMF, IMFH, IMH, IS, ISH, ISF, ISFH, EI, MI, FI, OI, ES,
+	MS, FS, OS,
+	IMC, IMHC, IMFC, IMFHC, IMWX, IMWC, ISC, ISFC, ISFHC, ISHC,
+	ISWX, ISWC,
+	ISCI, ISFCI, ISFHCI, ISHCI, ISWXI, FM, FMH, FMC, FMHC, ISFM,
+	ISFMH, ISFMC, ISFMHC, ISFMCI, ISFMHCI, ISECI, ISMCI, ISEHCI, ISMHCI, WR,
+	WRH}, L1_Replacement) {
+	zz_recycleMandatoryQueue;
+	}
+	transition({IM, IMH, IMF, IMFH, IMC, IMHC, IMFC, IMFHC, IMWX, IMWC, EI,
+	MI, FI, OI, ES, MS,
+	FS, OS, WB, IS, ISH, ISF, ISFH, ISFM, ISFMH, ISC, ISHC, ISFC,
+	ISFHC, ISFMC, ISFMHC,
+	ISWX, ISWC, ISCI, ISHCI, ISFCI, ISFHCI, ISFMCI, ISFMHCI,
+	ISECI, ISEHCI, ISMCI,
+	ISMHCI, ISWXI, FM, FMH, FMC, FMHC, WR, WRH}, Fwd_Recycle) {
+	rr_recycleRequestQueue;
+	}
+	transition({S, F, E, I}, L1_Replacement, I) {
+	ff_deallocateL1CacheBlock;
+	}
+	// transition({M, O}, L1_Replacement, WB) {
+	//
+
+	i_allocateTBE;
+
+	//
+
+	g_issuePUTX;
+
+	147
+	//
+
+	ff_deallocateL1CacheBlock;
+
+	// }
+	transition(O, L1_Replacement, WB) {
+	i_allocateTBE;
+	gf_issueL2FowardModified;
+	ff_deallocateL1CacheBlock;
+	}
+	transition(M, L1_Replacement, WB) {
+	i_allocateTBE;
+	gm_issueL2Modified;
+	ff_deallocateL1CacheBlock;
+	}
+	transition(WB, WB_Ack, I) {
+	s_deallocateTBE;
+	o_popIncomingResponseQueue;
+	}
+	transition(WB, {Store, Load, Ifetch}) {
+	zz_recycleMandatoryQueue;
+	}
+	transition(WB, {Fwd_GETX, Fwd_GETS, Fwd_GET_INSTR}) {
+	rr_recycleRequestQueue;
+	}
+	// TODO: This may be blocking other messages in the network from
+	completing
+	// While waiting for a DACK, no other requests are served.
+	transition({FI, EI, MI, OI, FS, ES, MS, OS, WR, WRH}, {Fwd_GETX,
+	Fwd_GETS, Fwd_GET_INSTR}) {
+	rr_recycleRequestQueue;
+	}
+	// Loads and stores
+	// Do not yet have permission to do the store/Transferring the line or
+
+	148
+
+	APPENDIX A. LOCAL CACHE CONTROLLER SLICC CODE
+
+	Invalidating
+	transition({ISF, ISFH, ISFC, ISFHC, ISFCI, ISFHCI, OI, EI, MI, FI, OS,
+	ES, MS, FS, ISFM, ISFMH, ISFMC, ISFMHC, ISFMCI, ISFMHCI}, Store) {
+	zz_recycleMandatoryQueue;
+	}
+	// Transferring the line or Invalidating
+	transition({OI, EI, MI, FI}, {Load, Ifetch}) {
+	zz_recycleMandatoryQueue;
+	}
+	transition(I, Load, IS) {
+	oo_allocateL1DCacheBlock;
+	i_allocateTBE;
+	a_issueGETS;
+	k_popMandatoryQueue;
+	}
+	transition(I, Ifetch, IS) {
+	pp_allocateL1ICacheBlock;
+	i_allocateTBE;
+	ai_issueGETINSTR;
+	k_popMandatoryQueue;
+	}
+	// States which are legal to read from, can just do the read.
+	transition({S, F, E, M, O, IMF, IMFH, ISF, ISFH, IMFC, IMFHC, ISFC,
+	ISFHC, ISFCI, ISFHCI, FM, FMH, FMC, FMHC, ES, MS, FS, OS,
+	ISFM, ISFMH, ISFMC, ISFMHC, ISFMCI, ISFMHCI, ISECI, ISMCI,
+	ISEHCI, ISMHCI, WR, WRH}, {Load, Ifetch}) {
+	h_load_hit;
+	k_popMandatoryQueue;
+	}
+	transition(I, Store, IM) {
+	oo_allocateL1DCacheBlock;
+	i_allocateTBE;
+	b_issueGETX;
+	k_popMandatoryQueue;
+
+	149
+	}
+	transition(S, Store, IM) {
+	i_allocateTBE;
+	b_issueGETX;
+	k_popMandatoryQueue;
+	}
+	// States which are legal to write from, can just do the write.
+	transition({M, IMF, IMFH, IMFC, IMFHC, FM, FMH, FMC, FMHC, ISMCI, ISMHCI,
+	WR, WRH}, Store) {
+	hh_store_hit;
+	k_popMandatoryQueue;
+	}
+	transition(E, Store, M) {
+	hh_store_hit;
+	k_popMandatoryQueue;
+	}
+
+	// F and O are equivalent here, as the Fwd_GetX will invalidate everyone
+	else, and this node is guaranteed to be the first one to reply to home - not
+	true!!
+	/*transition({F, O}, Store, FM) {
+	hh_store_hit;
+	i_allocateTBE;
+	b_issueGETX;
+	k_popMandatoryQueue;
+	}*/
+	transition(F, Store, WR) {
+	i_allocateTBE;
+	b_issueGETX;
+	hh_store_hit;
+	k_popMandatoryQueue;
+	}
+	// transition(O, Store, WB) {
+
+	150
+
+	APPENDIX A. LOCAL CACHE CONTROLLER SLICC CODE
+	//
+
+	i_allocateTBE;
+
+	//
+
+	g_issuePUTX;
+
+	// }
+	transition(O, Store, WR) {
+	i_allocateTBE;
+	b_issueGETX;
+	hh_store_hit;
+	k_popMandatoryQueue;
+	}
+
+	// We got the line as exclusive because someother node sent a GetX, and
+	has not yet gotten the line (to modify it)
+	transition(ISECI, Store, ISMCI) {
+	hh_store_hit;
+	k_popMandatoryQueue;
+	}
+	transition(ISEHCI, Store, ISMHCI) {
+	hh_store_hit;
+	k_popMandatoryQueue;
+	}
+	// Acknowledgement messages
+	// IM
+	transition(IM, IACK) {
+	o_popIncomingResponseQueue;
+	}
+	transition(IMF, IACK) {
+	o_popIncomingResponseQueue;
+	}
+	transition(IM, IACK_Final, IMH) {
+	d_sendReadHome;
+	o_popIncomingResponseQueue;
+
+	151
+	}
+	transition(IMF, IACK_Final, IMFH) {
+	c_sendCnclHome;
+	o_popIncomingResponseQueue;
+	}
+	transition(IM, SACK) {
+	o_popIncomingResponseQueue;
+	}
+	transition(IMF, SACK) {
+	o_popIncomingResponseQueue;
+	}
+	transition(IM, SACK_Final, IMH) {
+	d_sendReadHome;
+	o_popIncomingResponseQueue;
+	}
+	transition(IMF, SACK_Final, IMFH) {
+	c_sendCnclHome;
+	o_popIncomingResponseQueue;
+	}
+	// IS
+	transition({IS, ISF, ISFM}, IACK) {
+	o_popIncomingResponseQueue;
+	}
+	transition(IS, IACK_Final, ISH) {
+	d_sendReadHome;
+	o_popIncomingResponseQueue;
+	}
+	transition(ISF, IACK_Final, ISFH) {
+	c_sendCnclHome;
+	o_popIncomingResponseQueue;
+
+	152
+
+	APPENDIX A. LOCAL CACHE CONTROLLER SLICC CODE
+	}
+	transition(ISFM, IACK_Final, ISFMH) {
+	c_sendCnclHome;
+	o_popIncomingResponseQueue;
+	}
+	transition({IS, ISF, ISFM}, SACK) {
+	o_popIncomingResponseQueue;
+	}
+	transition(IS, SACK_Final, ISH) {
+	d_sendReadHome;
+	o_popIncomingResponseQueue;
+	}
+	transition(ISF, SACK_Final, ISFH) {
+	c_sendCnclHome;
+	o_popIncomingResponseQueue;
+	}
+	transition(ISFM, SACK_Final, ISFMH) {
+	c_sendCnclHome;
+	o_popIncomingResponseQueue;
+	}
+
+	// FM
+	transition(FM, IACK) {
+	o_popIncomingResponseQueue;
+	}
+	transition(FM, SACK) {
+	o_popIncomingResponseQueue;
+	}
+	transition(FM, IACK_Final, FMH) {
+	c_sendCnclHome;
+
+	153
+	o_popIncomingResponseQueue;
+	}
+	transition(FM, SACK_Final, FMH) {
+	c_sendCnclHome;
+	o_popIncomingResponseQueue;
+	}
+	// Forwarded data from L1/ cache
+	transition(IM, {DataE, DataM}, IMF) {
+	u_writeDataToL1Cache;
+	v_recordForwarder;
+	hh_store_hit;
+	od_popIncomingDataResponseQueue;
+	}
+	transition(IM, {DataE_Final, DataM_Final}, IMFH) {
+	u_writeDataToL1Cache;
+	v_recordForwarder;
+	c_sendCnclHome;
+	hh_store_hit;
+	od_popIncomingDataResponseQueue;
+	}
+	// These transitions occur when there is a forward state present.
+	// May need to distinguish this state as one that cannot yet be written
+	to
+	transition(IM, {DataF, DataFM}, IMF) {
+	u_writeDataToL1Cache;
+	v_recordForwarder;
+	hh_store_hit;
+	od_popIncomingDataResponseQueue;
+	}
+	// May need to distinguish this state as one that cannot yet be written
+	to
+	transition(IM, {DataF_Final, DataFM_Final}, IMFH) {
+	u_writeDataToL1Cache;
+
+	154
+
+	APPENDIX A. LOCAL CACHE CONTROLLER SLICC CODE
+	v_recordForwarder;
+	c_sendCnclHome;
+	hh_store_hit;
+	od_popIncomingDataResponseQueue;
+	}
+	transition(IS, DataF, ISF) {
+	u_writeDataToL1Cache;
+	v_recordForwarder;
+	h_load_hit;
+	od_popIncomingDataResponseQueue;
+	}
+	transition(IS, {DataFM, DataM}, ISFM) {
+	u_writeDataToL1Cache;
+	v_recordForwarder;
+	h_load_hit;
+	od_popIncomingDataResponseQueue;
+	}
+	transition(IS, DataF_Final, ISFH) {
+	u_writeDataToL1Cache;
+	v_recordForwarder;
+	c_sendCnclHome;
+	h_load_hit;
+	od_popIncomingDataResponseQueue;
+	}
+	transition(IS, {DataFM_Final, DataM_Final}, ISFMH) {
+	u_writeDataToL1Cache;
+	v_recordForwarder;
+	c_sendCnclHome;
+	h_load_hit;
+	od_popIncomingDataResponseQueue;
+	}
+
+	// Response from home
+
+	155
+	transition(IMH, DataE_Home, M) {
+	uu_writeHomeDataToL1Cache;
+	hh_store_hit;
+	s_deallocateTBE;
+	o_popIncomingResponseQueue;
+	}
+	transition(IMFH, Ack_Home, M) {
+	dd_sendDACKToRequestor;
+	//hh_store_hit;
+	s_deallocateTBE;
+	o_popIncomingResponseQueue;
+	}
+	transition(ISH, DataE_Home, E) {
+	uu_writeHomeDataToL1Cache;
+	h_load_hit;
+	s_deallocateTBE;
+	o_popIncomingResponseQueue;
+	}
+	transition(ISFH, Ack_Home, F) {
+	dd_sendDACKToRequestor;
+	s_deallocateTBE;
+	o_popIncomingResponseQueue;
+	}
+	transition(ISFMH, Ack_Home, O) {
+	dd_sendDACKToRequestor;
+	s_deallocateTBE;
+	o_popIncomingResponseQueue;
+	}
+	transition(FMH, Ack_Home, M) {
+	s_deallocateTBE;
+	o_popIncomingResponseQueue;
+	}
+
+	156
+
+	APPENDIX A. LOCAL CACHE CONTROLLER SLICC CODE
+	// Requests from another cache
+	transition(I, {Fwd_GETX, Fwd_GETS, Fwd_GET_INSTR}) {
+	di_sendIACKToRequestor;
+	l_popRequestQueue;
+	}
+	transition(S, Fwd_GETX, I) {
+	ds_sendSACKToRequestor;
+	l_popRequestQueue;
+	}
+	transition(S, {Fwd_GETS, Fwd_GET_INSTR}) {
+	ds_sendSACKToRequestor;
+	l_popRequestQueue;
+	}
+	transition(F, Fwd_GETX, FI) {
+	df_sendForwardDataToRequestor;
+	l_popRequestQueue;
+	}
+	transition(F, {Fwd_GETS, Fwd_GET_INSTR}, FS) {
+	df_sendForwardDataToRequestor;
+	l_popRequestQueue;
+	}
+	transition(O, Fwd_GETX, OI) {
+	dfm_sendForwardModifiedDataToRequestor;
+	l_popRequestQueue;
+	}
+	transition(O, {Fwd_GETS, Fwd_GET_INSTR}, OS) {
+	dfm_sendForwardModifiedDataToRequestor;
+	l_popRequestQueue;
+	}
+	transition(E, Fwd_GETX, EI) {
+	de_sendExclusiveDataToRequestor;
+
+	157
+	l_popRequestQueue;
+	}
+	transition(E, {Fwd_GETS, Fwd_GET_INSTR}, ES) {
+	df_sendForwardDataToRequestor;
+	l_popRequestQueue;
+	}
+	transition(M, {Fwd_GETS, Fwd_GET_INSTR}, MS) {
+	dfm_sendForwardModifiedDataToRequestor;
+	l_popRequestQueue;
+	}
+	transition(M, Fwd_GETX, MI) {
+	dm_sendModifiedDataToRequestor;
+	l_popRequestQueue;
+	}
+	// Dack transitions
+	transition({MS, ES, FS, OS}, DACK, S) {
+	s_deallocateTBE;
+	od_popIncomingDataResponseQueue;
+	}
+	transition({MI, EI, FI, OI}, DACK, I) {
+	s_deallocateTBE;
+	od_popIncomingDataResponseQueue;
+	}
+	// Conflict transitions - GetX
+	// Recieving conflicting requests in non-conflicting state
+	transition(IM, {Fwd_GETS, Fwd_GET_INSTR, Fwd_GETX}, IMC) {
+	cr_recordConflictMachineRequest;
+	sc_sendConflict;
+	l_popRequestQueue;
+	}
+
+	158
+
+	APPENDIX A. LOCAL CACHE CONTROLLER SLICC CODE
+
+	transition(IM, Conflict, IMC) {
+	cc_recordConflictMachineResponse;
+	o_popIncomingResponseQueue;
+	}
+	transition(IM, Conflict_Final, IMHC) {
+	cc_recordConflictMachineResponse;
+	d_sendReadHome;
+	o_popIncomingResponseQueue;
+	}
+	transition(IMF, {Fwd_GETS, Fwd_GET_INSTR, Fwd_GETX}, IMFC) {
+	cr_recordConflictMachineRequest;
+	sc_sendConflict;
+	l_popRequestQueue;
+	}
+	transition(IMF, Conflict, IMFC) {
+	cc_recordConflictMachineResponse;
+	o_popIncomingResponseQueue;
+	}
+	transition(IMF, Conflict_Final, IMFHC) {
+	cc_recordConflictMachineResponse;
+	c_sendCnclHome;
+	o_popIncomingResponseQueue;
+	}
+	/*transition(IMH, Data_Transfer, MI) {
+	u_writeDataToL1Cache;
+	v_recordForwarder;
+	hh_store_hit;
+	ct_recordTransferMachine;
+	tm_transferModified;
+	o_popIncomingResponseQueue;
+	}*/
+	/*transition(IMH, Wait, IMWC) {
+
+	159
+	o_popIncomingResponseQueue;
+	}*/
+	/*transition(IMH, Wait_Transfer, IMWX) {
+	ct_recordTransferMachine;
+	o_popIncomingResponseQueue;
+	}*/
+	transition(IMH, {Fwd_GETS, Fwd_GET_INSTR, Fwd_GETX}) {
+	rr_recycleRequestQueue;
+	}
+	transition(IMFH, {Fwd_GETS, Fwd_GET_INSTR, Fwd_GETX}) {
+	rr_recycleRequestQueue;
+	}
+	// Transitions when conflicting states exist
+	transition(IMC, {Fwd_GETS, Fwd_GET_INSTR, Fwd_GETX}) {
+	cr_recordConflictMachineRequest;
+	sc_sendConflict;
+	l_popRequestQueue;
+	}
+	transition(IMC, {IACK, SACK}) {
+	o_popIncomingResponseQueue;
+	}
+	transition(IMC, Conflict) {
+	cc_recordConflictMachineResponse;
+	o_popIncomingResponseQueue;
+	}
+	transition(IMC, {IACK_Final, SACK_Final}, IMHC) {
+	d_sendReadHome;
+	o_popIncomingResponseQueue;
+	}
+	transition(IMC, Conflict_Final, IMHC) {
+
+	160
+
+	APPENDIX A. LOCAL CACHE CONTROLLER SLICC CODE
+	cc_recordConflictMachineResponse;
+	d_sendReadHome;
+	o_popIncomingResponseQueue;
+	}
+	transition(IMC, {DataF, DataE, DataM, DataFM}, IMFC) {
+	u_writeDataToL1Cache;
+	v_recordForwarder;
+	hh_store_hit;
+	od_popIncomingDataResponseQueue;
+	}
+	transition(IMC, {DataF_Final, DataE_Final, DataM_Final, DataFM_Final},
+
+	IMFHC) {
+	u_writeDataToL1Cache;
+	v_recordForwarder;
+	hh_store_hit;
+	c_sendCnclHome;
+	od_popIncomingDataResponseQueue;
+	}
+	transition(IMFC, {Fwd_GETS, Fwd_GET_INSTR, Fwd_GETX}) {
+	rr_recycleRequestQueue;
+	}
+	transition(IMFC, {IACK, SACK}) {
+	o_popIncomingResponseQueue;
+	}
+	transition(IMFC, Conflict) {
+	cc_recordConflictMachineResponse;
+	o_popIncomingResponseQueue;
+	}
+	transition(IMFC, {IACK_Final, SACK_Final}, IMFHC) {
+	c_sendCnclHome;
+	o_popIncomingResponseQueue;
+	}
+
+	161
+	transition(IMFC, Conflict_Final, IMFHC) {
+	cc_recordConflictMachineResponse;
+	c_sendCnclHome;
+	o_popIncomingResponseQueue;
+	}
+	transition(IMFHC, Ack_Home, M) {
+	dd_sendDACKToRequestor;
+	s_deallocateTBE;
+	o_popIncomingResponseQueue;
+	}
+	transition(IMFHC, {Fwd_GETS, Fwd_GET_INSTR, Fwd_GETX}) {
+	rr_recycleRequestQueue;
+	}
+	transition(IMFHC, Transfer, MI) {
+	dd_sendDACKToRequestor;
+	ct_recordTransferMachine;
+	tm_transferModified;
+	o_popIncomingResponseQueue;
+	}
+	transition(IMFHC, Wait, M) {
+	dd_sendDACKToRequestor;
+	s_deallocateTBE;
+	o_popIncomingResponseQueue;
+	}
+	transition(IMFHC, Wait_Transfer, MI) {
+	dd_sendDACKToRequestor;
+	ct_recordTransferMachine;
+	tm_transferModified;
+	o_popIncomingResponseQueue;
+	}
+	transition(IMHC, {Fwd_GETS, Fwd_GET_INSTR, Fwd_GETX}) {
+	rr_recycleRequestQueue;
+	}
+
+	162
+
+	APPENDIX A. LOCAL CACHE CONTROLLER SLICC CODE
+
+	transition(IMHC, {DataF_Final, DataE_Final, DataM_Final, DataFM_Final},
+	IMFHC) {
+	u_writeDataToL1Cache;
+	v_recordForwarder;
+	hh_store_hit;
+	od_popIncomingDataResponseQueue;
+	}
+	transition(IMHC, Data_Transfer, MI) {
+	ru_responseWriteDataToL1Cache;
+	//v_responseRecordForwarder;
+	hh_store_hit;
+	ct_recordTransferMachine;
+	tm_transferModified;
+	o_popIncomingResponseQueue;
+	}
+	transition(IMHC, Wait, IMWC) {
+	o_popIncomingResponseQueue;
+	}
+	transition(IMHC, Wait_Transfer, IMWX) {
+	ct_recordTransferMachine;
+	o_popIncomingResponseQueue;
+	}
+	// Wont be DataF since we are going to exclusive
+	transition(IMWC, {DataE_Final, DataM_Final, DataFM_Final, DataF_Final},
+	M) {
+	v_recordForwarder;
+	dd_sendDACKToRequestor;
+	u_writeDataToL1Cache;
+	hh_store_hit;
+	s_deallocateTBE;
+	od_popIncomingDataResponseQueue;
+	}
+	transition(IMWC, {Fwd_GETS, Fwd_GET_INSTR, Fwd_GETX}) {
+
+	163
+	rr_recycleRequestQueue;
+	}
+	// Wont be DataF since we are going to exclusive
+	transition(IMWX, {DataE_Final, DataM_Final, DataFM_Final, DataF_Final},
+	MI) {
+	v_recordForwarder;
+	dd_sendDACKToRequestor;
+	u_writeDataToL1Cache;
+	hh_store_hit;
+	tm_transferModified;
+	od_popIncomingDataResponseQueue;
+	}
+	transition(IMWX, {Fwd_GETS, Fwd_GET_INSTR, Fwd_GETX}) {
+	rr_recycleRequestQueue;
+	}
+	// Conflicts - GetS
+	// Recieving conflicting requests in non-conflicting state
+	transition(IS, {Fwd_GETS, Fwd_GET_INSTR}, ISC) {
+	cr_recordConflictMachineRequest;
+	sc_sendConflict;
+	l_popRequestQueue;
+	}
+	transition(IS, Fwd_GETX, ISCI) {
+	cr_recordConflictMachineRequest;
+	sc_sendConflict;
+	l_popRequestQueue;
+	}
+	transition(IS, Conflict, ISC) {
+	cc_recordConflictMachineResponse;
+	o_popIncomingResponseQueue;
+	}
+
+	164
+
+	APPENDIX A. LOCAL CACHE CONTROLLER SLICC CODE
+	transition(IS, Conflict_Final, ISHC) {
+	cc_recordConflictMachineResponse;
+	d_sendReadHome;
+	o_popIncomingResponseQueue;
+	}
+	transition(ISF, {Fwd_GETS, Fwd_GET_INSTR}, ISFC) {
+	cr_recordConflictMachineRequest;
+	sc_sendConflict;
+	l_popRequestQueue;
+	}
+	transition(ISFM, {Fwd_GETS, Fwd_GET_INSTR}, ISFMC) {
+	cr_recordConflictMachineRequest;
+	sc_sendConflict;
+	l_popRequestQueue;
+	}
+	transition(ISF, Fwd_GETX, ISFCI) {
+	cr_recordConflictMachineRequest;
+	sc_sendConflict;
+	l_popRequestQueue;
+	}
+	transition(ISFM, Fwd_GETX, ISFMCI) {
+	cr_recordConflictMachineRequest;
+	sc_sendConflict;
+	l_popRequestQueue;
+	}
+	transition(ISF, Conflict, ISFC) {
+	cc_recordConflictMachineResponse;
+	o_popIncomingResponseQueue;
+	}
+	transition(ISFM, Conflict, ISFMC) {
+	cc_recordConflictMachineResponse;
+	o_popIncomingResponseQueue;
+	}
+
+	165
+
+	transition(ISF, Conflict_Final, ISFHC) {
+	cc_recordConflictMachineResponse;
+	c_sendCnclHome;
+	o_popIncomingResponseQueue;
+	}
+	transition(ISFM, Conflict_Final, ISFMHC) {
+	cc_recordConflictMachineResponse;
+	c_sendCnclHome;
+	o_popIncomingResponseQueue;
+	}
+	/*transition(ISH, Data_Transfer, FI) {
+	u_writeDataToL1Cache;
+	v_recordForwarder;
+	h_load_hit;
+	ct_recordTransferMachine;
+	tf_transferForward;
+	o_popIncomingResponseQueue;
+	}*/
+	/*transition(ISH, Wait, ISWC) {
+	o_popIncomingResponseQueue;
+	}*/
+	/*transition(ISH, Wait_Transfer, ISWX) {
+	ct_recordTransferMachine;
+	o_popIncomingResponseQueue;
+	}*/
+	transition(ISH, {Fwd_GETS, Fwd_GET_INSTR, Fwd_GETX}) {
+	rr_recycleRequestQueue;
+	}
+	transition(ISFH, Transfer, FS) {
+	dd_sendDACKToRequestor;
+	ct_recordTransferMachine;
+	tf_transferForward;
+
+	166
+
+	APPENDIX A. LOCAL CACHE CONTROLLER SLICC CODE
+	o_popIncomingResponseQueue;
+	}
+	transition(ISFMH, Transfer, OS) {
+	dd_sendDACKToRequestor;
+	ct_recordTransferMachine;
+	tfm_transferForwardModified;
+	o_popIncomingResponseQueue;
+	}
+	transition({ISFH, ISFMH}, {Fwd_GETS, Fwd_GET_INSTR, Fwd_GETX}) {
+	rr_recycleRequestQueue;
+	}
+	// Transitions when conflicting states exist
+	transition(ISC, {Fwd_GETS, Fwd_GET_INSTR}) {
+	cr_recordConflictMachineRequest;
+	sc_sendConflict;
+	l_popRequestQueue;
+	}
+	transition(ISC, Fwd_GETX, ISCI) {
+	cr_recordConflictMachineRequest;
+	sc_sendConflict;
+	l_popRequestQueue;
+	}
+	transition(ISC, {IACK, SACK}) {
+	o_popIncomingResponseQueue;
+	}
+	transition(ISC, Conflict) {
+	cc_recordConflictMachineResponse;
+	o_popIncomingResponseQueue;
+	}
+	transition(ISC, {IACK_Final, SACK_Final}, ISHC) {
+	d_sendReadHome;
+
+	167
+	o_popIncomingResponseQueue;
+	}
+	transition(ISC, Conflict_Final, ISHC) {
+	cc_recordConflictMachineResponse;
+	d_sendReadHome;
+	o_popIncomingResponseQueue;
+	}
+	transition(ISC, DataF, ISFC) {
+	u_writeDataToL1Cache;
+	v_recordForwarder;
+	h_load_hit;
+	od_popIncomingDataResponseQueue;
+	}
+	transition(ISC, {DataFM, DataM}, ISFMC) {
+	u_writeDataToL1Cache;
+	v_recordForwarder;
+	h_load_hit;
+	od_popIncomingDataResponseQueue;
+	}
+	transition(ISC, DataF_Final, ISFHC) {
+	u_writeDataToL1Cache;
+	v_recordForwarder;
+	h_load_hit;
+	c_sendCnclHome;
+	od_popIncomingDataResponseQueue;
+	}
+	transition(ISC, {DataFM_Final, DataM_Final}, ISFMHC) {
+	u_writeDataToL1Cache;
+	v_recordForwarder;
+	h_load_hit;
+	c_sendCnclHome;
+	od_popIncomingDataResponseQueue;
+	}
+
+	168
+
+	APPENDIX A. LOCAL CACHE CONTROLLER SLICC CODE
+	transition({ISFC, ISFMC}, {Fwd_GETS, Fwd_GET_INSTR, Fwd_GETX}) {
+	rr_recycleRequestQueue;
+	}
+	transition({ISFC, ISFMC}, {IACK, SACK}) {
+	o_popIncomingResponseQueue;
+	}
+	transition({ISFC, ISFMC}, Conflict) {
+	cc_recordConflictMachineResponse;
+	o_popIncomingResponseQueue;
+	}
+	transition(ISFC, {IACK_Final, SACK_Final}, ISFHC) {
+	c_sendCnclHome;
+	o_popIncomingResponseQueue;
+	}
+	transition(ISFMC, {IACK_Final, SACK_Final}, ISFMHC) {
+	c_sendCnclHome;
+	o_popIncomingResponseQueue;
+	}
+	transition(ISFC, Conflict_Final, ISFHC) {
+	cc_recordConflictMachineResponse;
+	c_sendCnclHome;
+	o_popIncomingResponseQueue;
+	}
+	transition(ISFMC, Conflict_Final, ISFMHC) {
+	cc_recordConflictMachineResponse;
+	c_sendCnclHome;
+	o_popIncomingResponseQueue;
+	}
+	transition(ISFHC, Ack_Home, F) {
+	dd_sendDACKToRequestor;
+	s_deallocateTBE;
+	o_popIncomingResponseQueue;
+
+	169
+	}
+	transition(ISFMHC, Ack_Home, O) {
+	dd_sendDACKToRequestor;
+	s_deallocateTBE;
+	o_popIncomingResponseQueue;
+	}
+	transition({ISFHC, ISFMHC}, {Fwd_GETS, Fwd_GET_INSTR, Fwd_GETX}) {
+	rr_recycleRequestQueue;
+	}
+	transition(ISFHC, Transfer, FS) {
+	dd_sendDACKToRequestor;
+	ct_recordTransferMachine;
+	tf_transferForward;
+	o_popIncomingResponseQueue;
+	}
+	transition(ISFMHC, Transfer, OS) {
+	dd_sendDACKToRequestor;
+	ct_recordTransferMachine;
+	tfm_transferForwardModified;
+	o_popIncomingResponseQueue;
+	}
+	transition(ISFHC, Wait, F) {
+	dd_sendDACKToRequestor;
+	s_deallocateTBE;
+	o_popIncomingResponseQueue;
+	}
+	transition(ISFMHC, Wait, O) {
+	dd_sendDACKToRequestor;
+	s_deallocateTBE;
+	o_popIncomingResponseQueue;
+	}
+	transition(ISFHC, Wait_Transfer, FS) {
+
+	170
+
+	APPENDIX A. LOCAL CACHE CONTROLLER SLICC CODE
+	dd_sendDACKToRequestor;
+	ct_recordTransferMachine;
+	tf_transferForward;
+	o_popIncomingResponseQueue;
+	}
+	transition(ISFMHC, Wait_Transfer, OS) {
+	dd_sendDACKToRequestor;
+	ct_recordTransferMachine;
+	tfm_transferForwardModified;
+	o_popIncomingResponseQueue;
+	}
+	transition(ISHC, {Fwd_GETS, Fwd_GET_INSTR, Fwd_GETX}) {
+	rr_recycleRequestQueue;
+	}
+	transition(ISHC, DataF_Final, ISFHC) {
+	u_writeDataToL1Cache;
+	v_recordForwarder;
+	h_load_hit;
+	od_popIncomingDataResponseQueue;
+	}
+	transition(ISHC, {DataFM_Final, DataM_Final}, ISFMHC) {
+	u_writeDataToL1Cache;
+	v_recordForwarder;
+	h_load_hit;
+	od_popIncomingDataResponseQueue;
+	}
+	transition(ISHC, Data_Transfer, FS) {
+	ru_responseWriteDataToL1Cache;
+	//v_responseRecordForwarder;
+	h_load_hit;
+	ct_recordTransferMachine;
+	tf_transferForward;
+	o_popIncomingResponseQueue;
+	}
+
+	171
+
+	transition(ISHC, Wait, ISWC) {
+	o_popIncomingResponseQueue;
+	}
+	transition(ISHC, Wait_Transfer, ISWX) {
+	ct_recordTransferMachine;
+	o_popIncomingResponseQueue;
+	}
+
+	transition(ISWC, DataF_Final, F) {
+	v_recordForwarder;
+	dd_sendDACKToRequestor;
+	u_writeDataToL1Cache;
+	h_load_hit;
+	s_deallocateTBE;
+	od_popIncomingDataResponseQueue;
+	}
+	transition(ISWC, DataFM_Final, O) {
+	v_recordForwarder;
+	dd_sendDACKToRequestor;
+	u_writeDataToL1Cache;
+	h_load_hit;
+	s_deallocateTBE;
+	od_popIncomingDataResponseQueue;
+	}
+	transition(ISWC, DataE_Final, E) {
+	v_recordForwarder;
+	dd_sendDACKToRequestor;
+	u_writeDataToL1Cache;
+	h_load_hit;
+	s_deallocateTBE;
+	od_popIncomingDataResponseQueue;
+	}
+	transition(ISWC, DataM_Final, M) {
+
+	172
+
+	APPENDIX A. LOCAL CACHE CONTROLLER SLICC CODE
+	v_recordForwarder;
+	dd_sendDACKToRequestor;
+	u_writeDataToL1Cache;
+	h_load_hit;
+	s_deallocateTBE;
+	od_popIncomingDataResponseQueue;
+	}
+	transition(ISWC, {Fwd_GETS, Fwd_GET_INSTR, Fwd_GETX}) {
+	rr_recycleRequestQueue;
+	}
+	transition(ISWX, DataF_Final, FS) {
+	v_recordForwarder;
+	dd_sendDACKToRequestor;
+	u_writeDataToL1Cache;
+	h_load_hit;
+	tf_transferForward;
+	od_popIncomingDataResponseQueue;
+	}
+	transition(ISWX, DataFM_Final, OS) {
+	v_recordForwarder;
+	dd_sendDACKToRequestor;
+	u_writeDataToL1Cache;
+	h_load_hit;
+	tfm_transferForwardModified;
+	od_popIncomingDataResponseQueue;
+	}
+	transition(ISWX, DataE_Final, ES) {
+	v_recordForwarder;
+	dd_sendDACKToRequestor;
+	u_writeDataToL1Cache;
+	h_load_hit;
+	tf_transferForward;
+	od_popIncomingDataResponseQueue;
+	}
+
+	173
+	transition(ISWX, DataM_Final, MS) {
+	v_recordForwarder;
+	dd_sendDACKToRequestor;
+	u_writeDataToL1Cache;
+	h_load_hit;
+	tfm_transferForwardModified;
+	od_popIncomingDataResponseQueue;
+	}
+	transition(ISWX, {Fwd_GETS, Fwd_GET_INSTR, Fwd_GETX}) {
+	rr_recycleRequestQueue;
+	}
+	// Conflicts S-M but invalidating
+	// Transitions when conflicting states exist
+	transition(ISCI, {Fwd_GETS, Fwd_GET_INSTR, Fwd_GETX}) {
+	cr_recordConflictMachineRequest;
+	sc_sendConflict;
+	l_popRequestQueue;
+	}
+	transition(ISCI, {IACK, SACK}) {
+	o_popIncomingResponseQueue;
+	}
+	transition(ISCI, Conflict) {
+	cc_recordConflictMachineResponse;
+	o_popIncomingResponseQueue;
+	}
+	transition(ISCI, {IACK_Final, SACK_Final}, ISHCI) {
+	d_sendReadHome;
+	o_popIncomingResponseQueue;
+	}
+	transition(ISCI, Conflict_Final, ISHCI) {
+	cc_recordConflictMachineResponse;
+	d_sendReadHome;
+
+	174
+
+	APPENDIX A. LOCAL CACHE CONTROLLER SLICC CODE
+	o_popIncomingResponseQueue;
+	}
+	transition(ISCI, DataF, ISFCI) {
+	u_writeDataToL1Cache;
+	v_recordForwarder;
+	h_load_hit;
+	od_popIncomingDataResponseQueue;
+	}
+	transition(ISCI, DataFM, ISFMCI) {
+	u_writeDataToL1Cache;
+	v_recordForwarder;
+	h_load_hit;
+	od_popIncomingDataResponseQueue;
+	}
+	transition(ISCI, DataE, ISECI) {
+	u_writeDataToL1Cache;
+	v_recordForwarder;
+	h_load_hit;
+	od_popIncomingDataResponseQueue;
+	}
+	transition(ISCI, DataM, ISMCI) {
+	u_writeDataToL1Cache;
+	v_recordForwarder;
+	h_load_hit;
+	od_popIncomingDataResponseQueue;
+	}
+	transition(ISCI, DataF_Final, ISFHCI) {
+	u_writeDataToL1Cache;
+	v_recordForwarder;
+	h_load_hit;
+	c_sendCnclHome;
+	od_popIncomingDataResponseQueue;
+	}
+
+	175
+	transition(ISCI, DataFM_Final, ISFMHCI) {
+	u_writeDataToL1Cache;
+	v_recordForwarder;
+	h_load_hit;
+	c_sendCnclHome;
+	od_popIncomingDataResponseQueue;
+	}
+	transition(ISCI, DataE_Final, ISEHCI) {
+	u_writeDataToL1Cache;
+	v_recordForwarder;
+	h_load_hit;
+	c_sendCnclHome;
+	od_popIncomingDataResponseQueue;
+	}
+	transition(ISCI, DataM_Final, ISMHCI) {
+	u_writeDataToL1Cache;
+	v_recordForwarder;
+	h_load_hit;
+	c_sendCnclHome;
+	od_popIncomingDataResponseQueue;
+	}
+	transition({ISFCI, ISFMCI, ISECI, ISMCI}, {Fwd_GETS, Fwd_GET_INSTR,
+	Fwd_GETX}) {
+	rr_recycleRequestQueue;
+	}
+	transition({ISFCI, ISFMCI, ISECI, ISMCI}, {IACK, SACK}) {
+	o_popIncomingResponseQueue;
+	}
+	transition({ISFCI, ISFMCI, ISECI, ISMCI}, Conflict) {
+	cc_recordConflictMachineResponse;
+	o_popIncomingResponseQueue;
+	}
+	transition(ISFCI, {IACK_Final, SACK_Final}, ISFHCI) {
+
+	176
+
+	APPENDIX A. LOCAL CACHE CONTROLLER SLICC CODE
+	c_sendCnclHome;
+	o_popIncomingResponseQueue;
+	}
+	transition(ISFMCI, {IACK_Final, SACK_Final}, ISFMHCI) {
+	c_sendCnclHome;
+	o_popIncomingResponseQueue;
+	}
+	transition(ISECI, {IACK_Final, SACK_Final}, ISEHCI) {
+	c_sendCnclHome;
+	o_popIncomingResponseQueue;
+	}
+	transition(ISMCI, {IACK_Final, SACK_Final}, ISMHCI) {
+	c_sendCnclHome;
+	o_popIncomingResponseQueue;
+	}
+	transition(ISFCI, Conflict_Final, ISFHCI) {
+	cc_recordConflictMachineResponse;
+	c_sendCnclHome;
+	o_popIncomingResponseQueue;
+	}
+	transition(ISFMCI, Conflict_Final, ISFMHCI) {
+	cc_recordConflictMachineResponse;
+	c_sendCnclHome;
+	o_popIncomingResponseQueue;
+	}
+	transition(ISECI, Conflict_Final, ISEHCI) {
+	cc_recordConflictMachineResponse;
+	c_sendCnclHome;
+	o_popIncomingResponseQueue;
+	}
+	transition(ISMCI, Conflict_Final, ISMHCI) {
+	cc_recordConflictMachineResponse;
+
+	177
+	c_sendCnclHome;
+	o_popIncomingResponseQueue;
+	}
+	// The Fwd_GetX that sent us into an IS...I state has been dealt with
+	already
+	transition(ISFHCI, Ack_Home, F) {
+	dd_sendDACKToRequestor;
+	s_deallocateTBE;
+	o_popIncomingResponseQueue;
+	}
+	transition(ISFMHCI, Ack_Home, O) {
+	dd_sendDACKToRequestor;
+	s_deallocateTBE;
+	o_popIncomingResponseQueue;
+	}
+	transition(ISEHCI, Ack_Home, E) {
+	dd_sendDACKToRequestor;
+	s_deallocateTBE;
+	o_popIncomingResponseQueue;
+	}
+	transition(ISMHCI, Ack_Home, M) {
+	dd_sendDACKToRequestor;
+	s_deallocateTBE;
+	o_popIncomingResponseQueue;
+	}
+	transition({ISFHCI, ISFMHCI, ISEHCI, ISMHCI}, {Fwd_GETS, Fwd_GET_INSTR,
+	Fwd_GETX}) {
+	rr_recycleRequestQueue;
+	}
+	transition(ISFHCI, Transfer, FI) {
+	dd_sendDACKToRequestor;
+	ct_recordTransferMachine;
+	tf_transferForward;
+
+	178
+
+	APPENDIX A. LOCAL CACHE CONTROLLER SLICC CODE
+	o_popIncomingResponseQueue;
+	}
+	transition(ISFMHCI, Transfer, OI) {
+	dd_sendDACKToRequestor;
+	ct_recordTransferMachine;
+	tfm_transferForwardModified;
+	o_popIncomingResponseQueue;
+	}
+	transition(ISEHCI, Transfer, EI) {
+	dd_sendDACKToRequestor;
+	ct_recordTransferMachine;
+	te_transferExclusive;
+	o_popIncomingResponseQueue;
+	}
+	transition(ISMHCI, Transfer, MI) {
+	dd_sendDACKToRequestor;
+	ct_recordTransferMachine;
+	tm_transferModified;
+	o_popIncomingResponseQueue;
+	}
+	// The Fwd_GetX that sent us into an IS...I state has been dealt with
+
+	already
+	transition(ISFHCI, Wait, F) {
+	dd_sendDACKToRequestor;
+	s_deallocateTBE;
+	o_popIncomingResponseQueue;
+	}
+	transition(ISFMHCI, Wait, O) {
+	dd_sendDACKToRequestor;
+	s_deallocateTBE;
+	o_popIncomingResponseQueue;
+	}
+	transition(ISEHCI, Wait, E) {
+
+	179
+	dd_sendDACKToRequestor;
+	s_deallocateTBE;
+	o_popIncomingResponseQueue;
+	}
+	transition(ISMHCI, Wait, M) {
+	dd_sendDACKToRequestor;
+	s_deallocateTBE;
+	o_popIncomingResponseQueue;
+	}
+	transition(ISFHCI, Wait_Transfer, FI) {
+	dd_sendDACKToRequestor;
+	ct_recordTransferMachine;
+	tf_transferForward;
+	o_popIncomingResponseQueue;
+	}
+	transition(ISFMHCI, Wait_Transfer, OI) {
+	dd_sendDACKToRequestor;
+	ct_recordTransferMachine;
+	tfm_transferForwardModified;
+	o_popIncomingResponseQueue;
+	}
+	transition(ISEHCI, Wait_Transfer, EI) {
+	dd_sendDACKToRequestor;
+	ct_recordTransferMachine;
+	te_transferExclusive;
+	o_popIncomingResponseQueue;
+	}
+	transition(ISMHCI, Wait_Transfer, MI) {
+	dd_sendDACKToRequestor;
+	ct_recordTransferMachine;
+	tm_transferModified;
+	o_popIncomingResponseQueue;
+	}
+
+	180
+
+	APPENDIX A. LOCAL CACHE CONTROLLER SLICC CODE
+	transition(ISHCI, {Fwd_GETS, Fwd_GET_INSTR, Fwd_GETX}) {
+	rr_recycleRequestQueue;
+	}
+	transition(ISHCI, DataF_Final, ISFHCI) {
+	u_writeDataToL1Cache;
+	v_recordForwarder;
+	h_load_hit;
+	od_popIncomingDataResponseQueue;
+	}
+	transition(ISHCI, DataFM_Final, ISFMHCI) {
+	u_writeDataToL1Cache;
+	v_recordForwarder;
+	h_load_hit;
+	od_popIncomingDataResponseQueue;
+	}
+	transition(ISHCI, DataE_Final, ISEHCI) {
+	u_writeDataToL1Cache;
+	v_recordForwarder;
+	h_load_hit;
+	od_popIncomingDataResponseQueue;
+	}
+	transition(ISHCI, DataM_Final, ISMHCI) {
+	u_writeDataToL1Cache;
+	v_recordForwarder;
+	h_load_hit;
+	od_popIncomingDataResponseQueue;
+	}
+	transition(ISHCI, Data_Transfer, FI) {
+	ru_responseWriteDataToL1Cache;
+	//v_responseRecordForwarder;
+	h_load_hit;
+	ct_recordTransferMachine;
+	tf_transferForward;
+	o_popIncomingResponseQueue;
+
+	181
+	}
+	// Transfer out of IS...I states due to Wait response
+	transition(ISHCI, Wait, ISWC) {
+	o_popIncomingResponseQueue;
+	}
+	transition(ISHCI, Wait_Transfer, ISWXI) {
+	ct_recordTransferMachine;
+	o_popIncomingResponseQueue;
+	}
+	transition(ISWXI, DataF_Final, FI) {
+	v_recordForwarder;
+	dd_sendDACKToRequestor;
+	u_writeDataToL1Cache;
+	h_load_hit;
+	tf_transferForward;
+	od_popIncomingDataResponseQueue;
+	}
+	transition(ISWXI, DataFM_Final, OI) {
+	v_recordForwarder;
+	dd_sendDACKToRequestor;
+	u_writeDataToL1Cache;
+	h_load_hit;
+	tfm_transferForwardModified;
+	od_popIncomingDataResponseQueue;
+	}
+	transition(ISWXI, DataE_Final, EI) {
+	v_recordForwarder;
+	dd_sendDACKToRequestor;
+	u_writeDataToL1Cache;
+	h_load_hit;
+	te_transferExclusive;
+	od_popIncomingDataResponseQueue;
+	}
+
+	182
+
+	APPENDIX A. LOCAL CACHE CONTROLLER SLICC CODE
+	transition(ISWXI, DataM_Final, MI) {
+	v_recordForwarder;
+	dd_sendDACKToRequestor;
+	u_writeDataToL1Cache;
+	h_load_hit;
+	tm_transferModified;
+	od_popIncomingDataResponseQueue;
+	}
+	transition(ISWXI, {Fwd_GETS, Fwd_GET_INSTR, Fwd_GETX}) {
+	rr_recycleRequestQueue;
+	}
+	// Conflicts F-M
+	// Recieving conflicting requests in non-conflicting state
+	transition(FM, {Fwd_GETS, Fwd_GET_INSTR, Fwd_GETX}, FMC) {
+	cr_recordConflictMachineRequest;
+	sc_sendConflict;
+	l_popRequestQueue;
+	}
+	transition(FM, Conflict, FMC) {
+	cc_recordConflictMachineResponse;
+	o_popIncomingResponseQueue;
+	}
+	transition(FM, Conflict_Final, FMHC) {
+	cc_recordConflictMachineResponse;
+	c_sendCnclHome;
+	o_popIncomingResponseQueue;
+	}
+	transition(FMH, {Fwd_GETS, Fwd_GET_INSTR, Fwd_GETX}) {
+	rr_recycleRequestQueue;
+	}
+	// Transitions when conflicting states exist
+
+	183
+
+	transition(FMC, IACK) {
+	o_popIncomingResponseQueue;
+	}
+	transition(FMC, SACK) {
+	o_popIncomingResponseQueue;
+	}
+	transition(FMC, IACK_Final, FMHC) {
+	c_sendCnclHome;
+	o_popIncomingResponseQueue;
+	}
+	transition(FMC, SACK_Final, FMHC) {
+	c_sendCnclHome;
+	o_popIncomingResponseQueue;
+	}
+	transition(FMC, {Fwd_GETS, Fwd_GET_INSTR, Fwd_GETX}) {
+	cr_recordConflictMachineRequest;
+	sc_sendConflict;
+	l_popRequestQueue;
+	}
+	transition(FMC, Conflict) {
+	cc_recordConflictMachineResponse;
+	o_popIncomingResponseQueue;
+	}
+	transition(FMC, Conflict_Final, FMHC) {
+	cc_recordConflictMachineResponse;
+	c_sendCnclHome;
+	o_popIncomingResponseQueue;
+	}
+	transition(FMHC, {Fwd_GETS, Fwd_GET_INSTR, Fwd_GETX}) {
+	rr_recycleRequestQueue;
+	}
+
+	184
+
+	APPENDIX A. LOCAL CACHE CONTROLLER SLICC CODE
+
+	transition(FMHC, Ack_Home, M) {
+	s_deallocateTBE;
+	//s_deallocateTBE;
+	o_popIncomingResponseQueue;
+	}
+	transition(FMHC, Transfer, MI) {
+	ct_recordTransferMachine;
+	tm_transferModified;
+	o_popIncomingResponseQueue;
+	}
+	// IS forwarded FM states
+
+	// Extra requests! These are GetS/X requests from a L1 cache which this
+	cache is already transferring too
+	// This prevents the request from being recycled until we recieve a DACK,
+	then being treated as a new request.
+	/*transition({MI, EI, FI, OI, MS, ES, FS, OS, IMWX, ISWX, ISWXI},
+	Extra_Request) {
+	l_popRequestQueue;
+	}*/
+	// TODO: if differentiating between I and S ACK, need to change this
+	transition
+	transition({MI, EI, FI, OI, MS, ES, FS, OS, IMWX, IMWC, ISWX, ISWC,
+	ISWXI}, {Extra_Fwd_GETS, Extra_Fwd_GET_INSTR}) {
+	di_sendIACKToRequestor;
+	l_popRequestQueue;
+	}
+	transition({MI, EI, FI, OI, IMWX, ISWXI}, Extra_Fwd_GETX) {
+	di_sendIACKToRequestor;
+	l_popRequestQueue;
+	}
+
+	185
+
+	transition(MS, Extra_Fwd_GETX, MI) {
+	di_sendIACKToRequestor;
+	l_popRequestQueue;
+	}
+	transition(ES, Extra_Fwd_GETX, EI) {
+	di_sendIACKToRequestor;
+	l_popRequestQueue;
+	}
+	transition(FS, Extra_Fwd_GETX, FI) {
+	di_sendIACKToRequestor;
+	l_popRequestQueue;
+	}
+	transition(OS, Extra_Fwd_GETX, OI) {
+	di_sendIACKToRequestor;
+	l_popRequestQueue;
+	}
+	transition(ISWX, Extra_Fwd_GETX, ISWXI) {
+	di_sendIACKToRequestor;
+	l_popRequestQueue;
+	}
+	transition(ISWC, Extra_Fwd_GETX, ISWXI) {
+	di_sendIACKToRequestor;
+	l_popRequestQueue;
+	}
+	transition(IMWC, Extra_Fwd_GETX, IMWX) {
+	di_sendIACKToRequestor;
+	l_popRequestQueue;
+	}
+
+	// WR, WRH
+
+	186
+
+	APPENDIX A. LOCAL CACHE CONTROLLER SLICC CODE
+	// TODO: if responding to conflicts, must respond to requests?
+	transition(WR, {IACK, SACK}){
+	o_popIncomingResponseQueue;
+	}
+	transition(WR, {IACK_Final, SACK_Final}, WRH){
+	c_sendCnclHome;
+	o_popIncomingResponseQueue;
+	}
+	transition(WR, Conflict){
+	cc_recordConflictMachineResponse;
+	o_popIncomingResponseQueue;
+	}
+	transition(WR, Conflict_Final, WRH){
+	cc_recordConflictMachineResponse;
+	c_sendCnclHome;
+	o_popIncomingResponseQueue;
+	}
+
+	transition(WRH, Transfer, MI){
+	ct_recordTransferMachine;
+	tm_transferModified;
+	o_popIncomingResponseQueue;
+	}
+
+	transition(WRH, Ack_Home, M){
+	s_deallocateTBE;
+	o_popIncomingResponseQueue;
+	}
+	}
+
+	Appendix B
+
+	Home Node and Shared Cache
+	Controller SLICC Code
+	/*
+	Copyright (C) 1999-2005 by Mark D. Hill and David A. Wood for the
+	Wisconsin Multifacet Project.
+
+	Contact: gems@cs.wisc.edu
+
+	http://www.cs.wisc.edu/gems/
+	-------------------------------------------------------------------This file is part of the SLICC (Specification Language for
+	Implementing Cache Coherence), a component of the Multifacet GEMS
+	(General Execution-driven Multiprocessor Simulator) software
+	toolset originally developed at the University of Wisconsin-Madison.
+
+	SLICC was originally developed by Milo Martin with substantial
+	contributions from Daniel Sorin.
+	Substantial further development of Multifacet GEMS at the
+	University of Wisconsin was performed by Alaa Alameldeen, Brad
+	Beckmann, Jayaram Bobba, Ross Dickson, Dan Gibson, Pacia Harper,
+	Derek Hower, Milo Martin, Michael Marty, Carl Mauer, Michelle Moravan,
+	Kevin Moore, Manoj Plakal, Daniel Sorin, Haris Volos, Min Xu, and Luke
+	Yen.
+	--------------------------------------------------------------------
+
+	187
+
+	188APPENDIX B. HOME NODE AND SHARED CACHE CONTROLLER SLICC CODE
+	If your use of this software contributes to a published paper, we
+	request that you (1) cite our summary paper that appears on our
+	website (http://www.cs.wisc.edu/gems/) and (2) e-mail a citation
+	for your published paper to gems@cs.wisc.edu.
+	If you redistribute derivatives of this software, we request that
+	you notify us and either (1) ask people to register with us at our
+	website (http://www.cs.wisc.edu/gems/) or (2) collect registration
+	information and periodically send it to us.
+	-------------------------------------------------------------------Multifacet GEMS is free software; you can redistribute it and/or
+	modify it under the terms of version 2 of the GNU General Public
+	License as published by the Free Software Foundation.
+	Multifacet GEMS is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+	See the GNU
+
+	General Public License for more details.
+	You should have received a copy of the GNU General Public License
+	along with the Multifacet GEMS; if not, write to the Free Software
+	Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
+	02111-1307, USA
+	The GNU General Public License is contained in the file LICENSE.
+	### END HEADER ###
+	*/
+	/*
+	* $Id: MOESI_CMP_token-dir.sm 1.6 05/01/19 15:48:35-06:00
+	mikem@royal16.cs.wisc.edu $
+	*/
+	/**
+	Modified by Andrew Hay (andrewh@cs.auckland.ac.nz), 2011
+
+	189
+	*/
+	machine(L2Cache, "MESIF protocol") {
+	// Message buffers: this node TO the network
+	MessageBuffer requestFromL2Cache, network="To", virtual_network="2",
+	ordered="false";
+
+	// this L2 bank -> Memory
+
+	MessageBuffer responseFromL2Cache, network="To", virtual_network="1",
+	ordered="false";
+
+	// this L2 bank -> a local L1
+
+	MessageBuffer dataResponseFromL2Cache, network="To", virtual_network="4",
+	ordered="false"; // cheating, simplifies things
+	// Message buffers: this node FROM the network
+	MessageBuffer L1RequestToL2Cache, network="From", virtual_network="0",
+	ordered="false";
+
+	// a local L1 -> this L2 bank
+
+	MessageBuffer responseToL2Cache, network="From", virtual_network="3",
+	ordered="false";
+
+	// Memory -> this L2 bank
+
+	MessageBuffer dataResponseToL2Cache, network="From", virtual_network="4",
+	ordered="false"; // cheating, simplifies things
+	// STATES
+	enumeration(State, desc="Cache states", default="L2Cache_State_I") {
+	// Base states
+	//NP,
+	I,
+	//F,
+
+	"NP",
+	"I",
+	"F",
+
+	desc="Not Present"; // Base Not present?
+	desc="Idle";
+	desc="Forward";
+
+	FM,
+
+	"FM",
+
+	desc="Owned (forward but dirty)";
+
+	M,
+
+	"M",
+
+	desc="Modified";
+
+	W,
+
+	"W",
+
+	desc="Waiting on reply from L1 and data from
+
+	WD,
+
+	"WD",
+
+	desc="Waiting on only data from memory";
+
+	WR,
+
+	"WR",
+
+	desc="Waiting on only reply from L1";
+
+	memory";
+
+	// Conflict states
+	//WRC,
+
+	"WRC",
+
+	desc="Waiting on only replies from L1, multiple
+
+	conflicting requests";
+	WDC,
+
+	"WDC",
+
+	desc="Waiting on only data from memory, multiple
+
+	conflicting requests"; // Should not see a WB event!
+	WCF,
+
+	"WCF",
+
+	desc="Waiting on replies from L1, data in memory
+
+	190APPENDIX B. HOME NODE AND SHARED CACHE CONTROLLER SLICC CODE
+	system, multiple conflicting requests";
+	// Write back states
+	FW,
+
+	"FW",
+
+	desc="Forwarding on a GetX/S msg, acts like a WR
+
+	state but recycles other GetX/S requests";
+	WB,
+
+	"WB",
+
+	desc="Writing back to memory";
+
+	// WBM,
+
+	"WBM",
+
+	desc="Writing back M to memory";
+
+	// WBFM,
+
+	"WBFM",
+
+	desc="Writing back FM to memory";
+
+	// WBWM,
+
+	"WBWM",
+
+	desc="Writing back M to memory, but we also
+
+	have received GetX/S/Inst";
+	// WBWFM,
+
+	"WBWFM",
+
+	desc="Writing back FM to memory, but we also
+
+	have received GetX/S/Inst";
+	// WBMWCF, "WBMWCF",
+
+	desc="WCF but writing back M";
+
+	// WBFMWCF,"WBFMWCF",
+
+	desc="WCF but writing back FM";
+
+	}
+	// EVENTS
+	enumeration(Event, desc="Cache events") {
+	GetS,
+
+	desc="GetS from an L1 cache";
+
+	GetX,
+
+	desc="GetX from an L1 cache";
+
+	GetInstr,
+
+	desc="GetInstr from an L1 cache";
+
+	Read,
+
+	desc="Read request an L1 cache";
+
+	Read_Final,
+
+	desc="Read request an L1 cache(no more
+
+	requestors after this)";
+	Cncl,
+
+	desc="Cancel memory request an L1 cache
+
+	(remaining requestors after this)";
+	Cncl_Final,
+
+	desc="Final cancel memory request an L1 cache
+
+	(no more requestors after this)";
+	Data,
+
+	desc="Data from memory - indicates that there
+
+	are requests waiting (don’t enter I)";
+	Data_Final,
+
+	desc="Data from memory - no more requests";
+
+	// TODO: we know that a write back only occurs if the forwarding node
+	is evicting - safe to become forward in
+	// L2 cache here.
+	//WB_Data,
+
+	desc="Write back data from L1 cache";
+
+	//DataF,
+
+	desc="Received shared data from a cache";
+
+	DataFM,
+
+	desc="Received forwarded/modified data from a
+
+	cache";
+	//DataE,
+
+	desc="Received exclusive data from a
+
+	191
+	cache";
+	DataM,
+
+	desc="Received modified data from a cache";
+
+	DACK,
+
+	desc="DACK from L1 Cache";
+
+	Mem_Ack,
+
+	desc="Ack from memory";
+
+	Cncl_No_Conflict,
+
+	desc="Cancel request, BUT we have new
+
+	requests which are non-conflicting to handle (cTable is empty, requestor
+	queue isn’t)";
+	Read_No_Conflict,
+
+	desc="Read request, BUT we have new requests
+
+	which are non-conflicting to handle (cTable is empty, requestor queue
+	isn’t)";
+	Read_Delay,
+
+	desc="Read request that must be delayed";
+
+	L2_Replacement,
+
+	desc="L2 cache line replacement";
+
+	}
+	// Internal types
+	// CacheEntry
+	structure(Entry, desc="...", interface="AbstractCacheEntry") {
+	State CacheState,
+
+	desc="cache state";
+
+	bool Dirty,
+
+	desc="Is the data dirty (different than
+
+	memory)?";
+	DataBlock DataBlk,
+
+	desc="data for the block";
+
+	}
+	structure(TBE, desc="...") {
+	Address Address,
+
+	desc="Physical address for this TBE";
+
+	State TBEState,
+
+	desc="Transient state";
+
+	DataBlock DataBlk,
+
+	desc="Buffer for the data block";
+
+	bool Dirty, default="false",desc="data is dirty";
+	PrefetchBit Prefetch,
+
+	desc="Set if this was caused by a
+
+	prefetch";
+	MachineID L1_Read_ID,
+
+	desc="ID of the L1 cache we want to
+
+	forward the block to when we get data";
+	MachineID L1_WB_ID,
+
+	desc="ID of the l1 cache that is writing
+
+	back the line";
+	RequestorQueue requestors,
+
+	desc="The queue of nodes which are
+
+	192APPENDIX B. HOME NODE AND SHARED CACHE CONTROLLER SLICC CODE
+	currently requesting this line but don’t have the line or are not scheduled
+	to get the line yet";
+	ConflictTable cTable,
+
+	desc="The conflict table (nxn array of
+
+	boolean values) which helps work out which nodes need the line to be
+	transferred too";
+	int remainingReq,
+
+	desc="A counter for the number of
+
+	requests remaining to be serviced";
+	}
+
+	// External types
+	external_type(CacheMemory) {
+	bool cacheAvail(Address);
+	Address cacheProbe(Address);
+	void allocate(Address);
+	void deallocate(Address);
+	Entry lookup(Address);
+	void changePermission(Address, AccessPermission);
+	bool isTagPresent(Address);
+	void setMRU(Address);
+	}
+	external_type(TBETable) {
+	TBE lookup(Address);
+	void allocate(Address);
+	void deallocate(Address);
+	bool isPresent(Address);
+	}
+	// global variables
+	TBETable L2_TBEs, template_hack="<L2Cache_TBE>";
+	CacheMemory L2cacheMemory, template_hack="<L2Cache_Entry>",
+	constructor_hack=’L2_CACHE_NUM_SETS_BITS,L2_CACHE_ASSOC,MachineType_L2Cache,in
+	t_to_string(i)’;
+	//CacheMemory L2cacheMemory, template_hack="<L2Cache_Entry>",
+	constructor_hack=’L2_CACHE_NUM_SETS_BITS,L2_CACHE_ASSOC,MachineType_L2Cache,in
+
+	193
+	t_to_string(i)+"_L2"’;
+
+	// Functions
+	// inclusive cache, returns L2 entries only
+	Entry getL2CacheEntry(Address addr), return_by_ref="yes" {
+	return L2cacheMemory[addr];
+	}
+	bool isL2CacheTagPresent(Address addr) {
+	return (L2cacheMemory.isTagPresent(addr));
+	}
+	void changePermission(Address addr, AccessPermission permission) {
+	if (L2cacheMemory.isTagPresent(addr)) {
+	return L2cacheMemory.changePermission(addr, permission);
+	}
+	else {
+	error("cannot change permission, L2 block not present");
+	}
+	}
+	State getState(Address addr) {
+	if(L2_TBEs.isPresent(addr)) {
+	return L2_TBEs[addr].TBEState;
+	}
+	else if (isL2CacheTagPresent(addr)) {
+	return getL2CacheEntry(addr).CacheState;
+	}
+	return State:I;
+	}
+	void setState(Address addr, State state) {
+	// MUST CHANGE
+	if (L2_TBEs.isPresent(addr)) {
+	L2_TBEs[addr].TBEState := state;
+	}
+
+	194APPENDIX B. HOME NODE AND SHARED CACHE CONTROLLER SLICC CODE
+	if (isL2CacheTagPresent(addr)) {
+	getL2CacheEntry(addr).CacheState := state;
+	// Set permission
+	// if (state == State:I) {
+	//
+
+	changePermission(addr, AccessPermission:Invalid);
+
+	// }
+	// else {
+	//
+
+	changePermission(addr, AccessPermission:Busy);
+
+	// }
+	if (state == State:I) {
+	changePermission(addr, AccessPermission:Invalid);
+	}
+	else if (state == State:FM || state == State:M ) {
+	changePermission(addr, AccessPermission:Read_Write);
+	}
+	else {
+	changePermission(addr, AccessPermission:Invalid);
+	}
+	}
+	}
+	// Requestor queue functions
+	/*bool isRequestor(Address addr, MachineID element) {
+	return L2_TBEs[addr].requestors.contains(element);
+	}*/
+	bool isLastRequestor(Address addr, MachineID element) {
+	return L2_TBEs[addr].requestors.lastElement(element);
+	}
+	/*MachineID getNextRequestor(Address addr) {
+	return L2_TBEs[addr].requestors.get(0);
+	}*/
+	MachineID popNextRequestor(Address addr) {
+	return L2_TBEs[addr].requestors.pop();
+
+	195
+	}
+	/*void addNode(Address addr, MachineID element) {
+	if (isRequestor(addr, element) == false) {
+	L2_TBEs[addr].requestors.push(element);
+	}
+	}*/
+	/*bool finalRequestor(Address addr) {
+	return (L2_TBEs[addr].requestors.getSize() <= 1) &&
+	L2_TBEs[addr].cTable.empty();
+	}*/
+	void removeRequestor(Address addr, MachineID requestor) {
+	//if (isRequestor(addr, requestor)) {
+	L2_TBEs[addr].requestors.remove(requestor);
+	//}
+	}
+	// Removes the requestor and then pops the head of list
+	MachineID popNextTransfer(Address addr, MachineID requestor) {
+	removeRequestor(addr, requestor);
+	return popNextRequestor(addr);
+	}
+	// Only works if newHead is inside the requestor queue already
+	/*void moveToHead(Address addr, MachineID newHead) {
+	if (isRequestor(addr, newHead)) {
+	removeRequestor(addr, newHead);
+	L2_TBEs[addr].requestors.pushToHead(newHead);
+	}
+	}*/
+	// returns the next on the list that is not the requestor
+	/*MachineID popNextTransferNotRequestor(Address addr, MachineID
+	requestor) {
+	if (getNextRequestor(addr) == requestor) {
+	moveToHead(addr, L2_TBEs[addr].requestors.get(1));
+	}
+
+	196APPENDIX B. HOME NODE AND SHARED CACHE CONTROLLER SLICC CODE
+	return popNextRequestor(addr);
+	}*/
+	// Must only be run when requestor is not the last element
+	MachineID popNextTransferAfterRequestor(Address addr, MachineID
+	requestor) {
+	assert(isLastRequestor(addr, requestor) ==
+
+	false);
+
+	return L2_TBEs[addr].requestors.popElementAfter(requestor);
+	}
+	void clearRequestors(Address addr) {
+	L2_TBEs[addr].requestors.clear();
+	}
+	void allocateTBE(Address addr) {
+	if (L2_TBEs.isPresent(addr) == false) {
+	check_allocate(L2_TBEs);
+	L2_TBEs.allocate(addr);
+	//L2_TBEs[address].DataBlk := getL2CacheEntry(address).DataBlk;
+	//L2_TBEs[address].Dirty := getL2CacheEntry(address).Dirty;
+	L2_TBEs[addr].requestors.clear();
+	L2_TBEs[addr].cTable.setSize(numberOfL1Cache());
+	if (isL2CacheTagPresent(addr)) {
+	L2_TBEs[addr].TBEState := getL2CacheEntry(addr).CacheState;
+	}
+	}
+	}
+	// Also allocates the TBE, it is simpler this way as adding the nodes
+	simplifies the transition logic. Not used
+	/*void addRequestorNode(Address addr, MachineID requestor) {
+	// Check TBE is allocated first
+	allocateTBE(addr);
+	// Only add the node if it has not already been added, and then
+	subsequently removed from the requestor queue by being transferred to!
+	if (L2_TBEs[addr].cTable.reportedConflict(requestor) == false) {
+	addNode(addr, requestor);
+
+	197
+	}
+	}*/
+	void addConflictNodes(Address addr, MachineID requestor, MachineIDset
+	conflicting) {
+	// Add all the conflicting nodes which have not already gotten the
+	line
+	L2_TBEs[addr].requestors.pushAll(L2_TBEs[addr].cTable.addConflictNodes(request
+	or, conflicting));
+	}
+	// All delays when we want the read to recycle -- and not be processed in
+	addConflictNodes
+	bool isReadDelay(Address addr, MachineID requestor) {
+	return (getState(addr) == State:WDC) || // Already a read, so must
+	wait
+	// When in WCF, we want to delay if this requestor is at the
+	end of the queue (because if we sent a "wait", other elements may be
+	// added to the end of the queue - we are screwed), but if
+	the queue is empty, we dont want to delay
+	(getState(addr) == State:WCF && isLastRequestor(addr,
+	requestor) && L2_TBEs[addr].requestors.isEmpty() == false);
+	}
+	Event writeback_request_type_to_event(CoherenceRequestType type) {
+	if (type == CoherenceRequestType:DataM) {
+	return Event:DataM;
+	} else if (type == CoherenceRequestType:DataFM) {
+	return Event:DataFM;
+	} else {
+	error("Invalid CacheRequestType");
+	}
+	}
+	// Whenever a GetX/S/Inst arrives and is not recycled
+	void registerRequest(Address addr) {
+	allocateTBE(addr);
+	L2_TBEs[addr].remainingReq := L2_TBEs[addr].remainingReq + 1;
+
+	198APPENDIX B. HOME NODE AND SHARED CACHE CONTROLLER SLICC CODE
+	}
+	// Out ports
+	out_port(requestNetwork_out, RequestMsg, requestFromL2Cache);
+	out_port(responseNetwork_out, ResponseMsg, responseFromL2Cache);
+	out_port(dataResponseNetwork_out, ResponseMsg, dataResponseFromL2Cache);
+
+	// In ports
+	in_port(L1requestNetwork_in, RequestMsg, L1RequestToL2Cache) {
+	if (L1requestNetwork_in.isReady()) {
+	peek(L1requestNetwork_in, RequestMsg) {
+	assert(in_msg.Destination.isElement(machineID));
+	// Due to the fact that this method does computation ONLY
+	when the msg is NOT recycled, must bypass the recycling messages!
+	// GETS and GETX add the requestor to the requestor queue (if
+	it should be added)
+	if (in_msg.Type == CoherenceRequestType:GETS) {
+	// if (getState(in_msg.Address) != State:FW &&
+	//
+
+	getState(in_msg.Address) != State:WB) {
+
+	//
+	//
+
+	// Assuming that the GetX/S/Inst msg always comes
+
+	before the Read/Cncl msg
+	//
+
+	allocateTBE(in_msg.Address);
+
+	//
+
+	L2_TBEs[in_msg.Address].remainingReq :=
+
+	L2_TBEs[in_msg.Address].remainingReq + 1;
+	// }
+	trigger(Event:GetS, in_msg.Address);
+	}
+	else if (in_msg.Type == CoherenceRequestType:GET_INSTR) {
+	// if (getState(in_msg.Address) != State:FW &&
+	//
+
+	getState(in_msg.Address) != State:WB) {
+
+	//
+	//
+
+	allocateTBE(in_msg.Address);
+
+	199
+	//
+
+	L2_TBEs[in_msg.Address].remainingReq :=
+
+	L2_TBEs[in_msg.Address].remainingReq + 1;
+	// }
+	trigger(Event:GetInstr, in_msg.Address);
+	}
+	else if (in_msg.Type == CoherenceRequestType:GETX) {
+	// if (getState(in_msg.Address) != State:FW &&
+	//
+
+	getState(in_msg.Address) != State:WB) {
+
+	//
+	//
+
+	allocateTBE(in_msg.Address);
+
+	//
+
+	L2_TBEs[in_msg.Address].remainingReq :=
+
+	L2_TBEs[in_msg.Address].remainingReq + 1;
+	// }
+	trigger(Event:GetX, in_msg.Address);
+	}
+	// READ and CNCL adds the conflicting nodes
+	else if (in_msg.Type == CoherenceRequestType:READ) {
+	assert(getState(in_msg.Address) != State:WD);
+	// Only if this read is not to be delayed (recycled) do
+	we add conflictnodes
+	if (isReadDelay(in_msg.Address, in_msg.Requestor) ==
+	false) {
+	addConflictNodes(in_msg.Address, in_msg.Requestor,
+	in_msg.ConflictMachs);
+	L2_TBEs[in_msg.Address].remainingReq :=
+	L2_TBEs[in_msg.Address].remainingReq - 1;
+	// Requestor queue is up to date now
+	}
+	if (isReadDelay(in_msg.Address, in_msg.Requestor)) {
+	trigger(Event:Read_Delay, in_msg.Address);
+	}
+	else if (L2_TBEs[in_msg.Address].cTable.empty()
+
+	&&
+
+	L2_TBEs[in_msg.Address].remainingReq == 0) {
+	trigger(Event:Read_Final, in_msg.Address);
+	}
+	else if (L2_TBEs[in_msg.Address].cTable.empty() &&
+
+	200APPENDIX B. HOME NODE AND SHARED CACHE CONTROLLER SLICC CODE
+	L2_TBEs[in_msg.Address].remainingReq > 0) {
+	trigger(Event:Read_No_Conflict, in_msg.Address);
+	}
+	// Delay only if we are in a conflicting state and we are
+	the final requestor in the RQ
+	/*else if (isReadDelay(in_msg.Address, in_msg.Requestor))
+	{
+	trigger(Event:Read_Delay, in_msg.Address);
+	}*/
+	/*else if (L2_TBEs[in_msg.Address].cTable.empty() ==
+	false
+	&&
+	L2_TBEs[in_msg.Address].requestors.getSize() == 1 &&
+	isRequestor(in_msg.Address, in_msg.Requestor)) {
+	trigger(Event:Read_Delay, in_msg.Address);
+	}*/
+	else if (L2_TBEs[in_msg.Address].cTable.empty() == false)
+	{
+	trigger(Event:Read, in_msg.Address);
+	}
+	else {
+	error("Invalid state for the conflict table on a Read
+	request");
+	}
+	}
+	else if (in_msg.Type == CoherenceRequestType:CNCL) {
+	addConflictNodes(in_msg.Address, in_msg.Requestor,
+	in_msg.ConflictMachs);
+	removeRequestor(in_msg.Address, in_msg.Requestor);
+	L2_TBEs[in_msg.Address].remainingReq :=
+	L2_TBEs[in_msg.Address].remainingReq - 1;
+	// Requestor queue is up to date now
+	if (L2_TBEs[in_msg.Address].cTable.empty() &&
+	L2_TBEs[in_msg.Address].remainingReq == 0) {
+	trigger(Event:Cncl_Final, in_msg.Address);
+	}
+	else if (L2_TBEs[in_msg.Address].cTable.empty() &&
+
+	201
+	L2_TBEs[in_msg.Address].remainingReq > 0) {
+	trigger(Event:Cncl_No_Conflict, in_msg.Address);
+	}
+	else if (L2_TBEs[in_msg.Address].cTable.empty() == false)
+	{
+	trigger(Event:Cncl, in_msg.Address);
+	}
+	else {
+	error("Invalid state for the conflict table on a
+	Cancel request");
+	}
+	}
+	/*else if (in_msg.Type == CoherenceRequestType:PUTX) {
+	trigger(Event:WB_Data, in_msg.Address);
+	}*/
+	else if (in_msg.Type == CoherenceRequestType:DataM ||
+	in_msg.Type == CoherenceRequestType:DataFM) {
+	if (L2cacheMemory.isTagPresent(in_msg.Address) ||
+	L2cacheMemory.cacheAvail(in_msg.Address)) {
+	trigger(writeback_request_type_to_event(in_msg.Type),
+	in_msg.Address);
+	}
+	else {
+	trigger(Event:L2_Replacement,
+	L2cacheMemory.cacheProbe(in_msg.Address));
+	}
+	}
+	}
+	}
+	}
+	in_port(responseToL2Cache_in, ResponseMsg, responseToL2Cache) {
+	if (responseToL2Cache_in.isReady()) {
+	peek(responseToL2Cache_in, ResponseMsg) {
+	if (in_msg.Type == CoherenceResponseType:MEMORY_DATA) {
+
+	202APPENDIX B. HOME NODE AND SHARED CACHE CONTROLLER SLICC CODE
+	if (L2_TBEs.isPresent(in_msg.Address) &&
+	L2_TBEs[in_msg.Address].remainingReq > 0) {
+	trigger(Event:Data, in_msg.Address);
+	}
+	else {
+	trigger(Event:Data_Final, in_msg.Address);
+	}
+	}
+	else if (in_msg.Type == CoherenceResponseType:MEMORY_ACK) {
+	trigger(Event:Mem_Ack, in_msg.Address);
+	}
+	}
+	}
+	}
+	//Dummy, not used in L2
+	in_port(dataResponseNetwork_in, ResponseMsg, dataResponseToL2Cache) {
+	if (dataResponseNetwork_in.isReady()) {
+	peek(dataResponseNetwork_in, ResponseMsg) {
+	// Unnessary for L2 cache
+	if (in_msg.Type == CoherenceResponseType:DACK){
+	trigger(Event:DACK, in_msg.Address);
+	}
+	}
+	}
+	}
+	// Events
+	action(a_issueFetchToMemory, "a", desc="fetch data from memory") {
+	enqueue(requestNetwork_out, RequestMsg, latency="L2_REQUEST_LATENCY")
+	{
+	out_msg.Address := address;
+	out_msg.Type := CoherenceRequestType:GETS;
+	out_msg.Requestor := machineID;
+	out_msg.Destination.add(map_Address_to_Directory(address));
+	out_msg.MessageSize := MessageSizeType:Control;
+	}
+
+	203
+	}
+	action(aa_sendAck, "aa", desc="Send acknowledgement message to
+	requestor") {
+	peek(L1requestNetwork_in, RequestMsg) {
+	enqueue(responseNetwork_out, ResponseMsg,
+	latency="L1_REQUEST_LATENCY") {
+	out_msg.Address := address;
+	out_msg.Type := CoherenceResponseType:ACK;
+	out_msg.SenderMachine := MachineType:L2Cache;
+	out_msg.Destination.add(in_msg.Requestor);
+	out_msg.MessageSize := MessageSizeType:Control;
+	}
+	}
+	}
+	action(c_writebackData, "c", desc="Write back data memory") {
+	enqueue(requestNetwork_out, RequestMsg, latency="L2_REQUEST_LATENCY")
+	{
+	out_msg.Address := address;
+	out_msg.Type := CoherenceRequestType:PUTX;
+	out_msg.Requestor := machineID;
+	out_msg.Destination.add(map_Address_to_Directory(address));
+	out_msg.MessageSize := MessageSizeType:Writeback_Data;
+	out_msg.DataBlk := getL2CacheEntry(address).DataBlk;
+	}
+	}
+	action(di_sendIACKToRequestor, "di", desc="send IACK to requestor") {
+	peek(L1requestNetwork_in, RequestMsg) {
+	enqueue(responseNetwork_out, ResponseMsg,
+	latency="L1_REQUEST_LATENCY") {
+	out_msg.Address := address;
+	out_msg.Type := CoherenceResponseType:IACK;
+	out_msg.SenderMachine := MachineType:L2Cache;
+	out_msg.Dirty := false;
+	out_msg.Sender := machineID;
+	out_msg.Destination.add(in_msg.Requestor);
+
+	204APPENDIX B. HOME NODE AND SHARED CACHE CONTROLLER SLICC CODE
+	out_msg.MessageSize := MessageSizeType:Control;
+	}
+	}
+	}
+	action(d_storeDataTBE, "d", desc="Temporarily stores the data in the
+	TBE") {
+	peek(responseToL2Cache_in, ResponseMsg) {
+	L2_TBEs[address].DataBlk := in_msg.DataBlk;
+	L2_TBEs[address].Dirty := in_msg.Dirty;
+	}
+	}
+	action(rd_requestStoreDataTBE, "rd", desc="Temporarily stores the data in
+	the TBE (taken from WB data)") {
+	peek(L1requestNetwork_in, RequestMsg) {
+	L2_TBEs[address].DataBlk := in_msg.DataBlk;
+	L2_TBEs[address].Dirty := in_msg.Dirty;
+	}
+	}
+	action(f_forwardDataToCache, "f", desc="Forward data to L1 cache - not
+	conflicting here") {
+	removeRequestor(address, L2_TBEs[address].L1_Read_ID);
+	if (isL2CacheTagPresent(address)) {
+	enqueue(responseNetwork_out, ResponseMsg,
+	latency="L2_RESPONSE_LATENCY") {
+	out_msg.Address := address;
+	out_msg.Type := CoherenceResponseType:DataF_E;
+	out_msg.Sender := machineID;
+	out_msg.SenderMachine := MachineType:L2Cache;
+	out_msg.Destination.add(L2_TBEs[address].L1_Read_ID);
+	out_msg.DataBlk := getL2CacheEntry(address).DataBlk;
+	out_msg.Dirty := getL2CacheEntry(address).Dirty;
+	DEBUG_EXPR(out_msg.Address);
+	DEBUG_EXPR(out_msg.Destination);
+	DEBUG_EXPR(out_msg.DataBlk);
+
+	205
+	out_msg.MessageSize := MessageSizeType:Response_Data;
+	}
+	}
+	else {
+	enqueue(responseNetwork_out, ResponseMsg,
+	latency="L2_RESPONSE_LATENCY") {
+	out_msg.Address := address;
+	out_msg.Type := CoherenceResponseType:DataF_E;
+	out_msg.Sender := machineID;
+	out_msg.SenderMachine := MachineType:L2Cache;
+	out_msg.Destination.add(L2_TBEs[address].L1_Read_ID);
+	out_msg.DataBlk := L2_TBEs[address].DataBlk;
+	out_msg.Dirty := L2_TBEs[address].Dirty;
+	DEBUG_EXPR(out_msg.Address);
+	DEBUG_EXPR(out_msg.Destination);
+	DEBUG_EXPR(out_msg.DataBlk);
+	out_msg.MessageSize := MessageSizeType:Response_Data;
+	}
+	}
+	}
+	action(fm_forwardmodifiedDataToCache, "fm", desc="Forward modified data
+	to L1 cache - not conflicting here") {
+	peek(L1requestNetwork_in, RequestMsg) {
+	enqueue(dataResponseNetwork_out, ResponseMsg,
+	latency="L2_RESPONSE_LATENCY") {
+	out_msg.Address := address;
+	out_msg.Type := CoherenceResponseType:DataF_M;
+	out_msg.Sender := machineID;
+	out_msg.SenderMachine := MachineType:L2Cache;
+	out_msg.Destination.add(in_msg.Requestor);
+	out_msg.DataBlk := getL2CacheEntry(address).DataBlk;
+	out_msg.Dirty := getL2CacheEntry(address).Dirty;
+	DEBUG_EXPR(out_msg.Address);
+	DEBUG_EXPR(out_msg.Destination);
+	DEBUG_EXPR(out_msg.DataBlk);
+	out_msg.MessageSize := MessageSizeType:Response_Data;
+	}
+
+	206APPENDIX B. HOME NODE AND SHARED CACHE CONTROLLER SLICC CODE
+	}
+	}
+	action(ffm_forwardforwardmodifiedDataToCache, "ffm", desc="Forward
+	forward modified data to L1 cache - not conflicting here") {
+	peek(L1requestNetwork_in, RequestMsg) {
+	enqueue(dataResponseNetwork_out, ResponseMsg,
+	latency="L2_RESPONSE_LATENCY") {
+	out_msg.Address := address;
+	out_msg.Type := CoherenceResponseType:DataF_FM;
+	out_msg.Sender := machineID;
+	out_msg.SenderMachine := MachineType:L2Cache;
+	out_msg.Destination.add(in_msg.Requestor);
+	out_msg.DataBlk := getL2CacheEntry(address).DataBlk;
+	out_msg.Dirty := getL2CacheEntry(address).Dirty;
+	DEBUG_EXPR(out_msg.Address);
+	DEBUG_EXPR(out_msg.Destination);
+	DEBUG_EXPR(out_msg.DataBlk);
+	out_msg.MessageSize := MessageSizeType:Response_Data;
+	}
+	}
+	}
+
+	action(wa_sendWBAck, "wa", desc="Send WB acknowledgement message to
+	requestor") {
+	enqueue(responseNetwork_out, ResponseMsg,
+	latency="L1_REQUEST_LATENCY") {
+	out_msg.Address := address;
+	out_msg.Type := CoherenceResponseType:MEMORY_ACK;
+	out_msg.SenderMachine := MachineType:L2Cache;
+	out_msg.Destination.add(L2_TBEs[address].L1_WB_ID);
+	out_msg.MessageSize := MessageSizeType:Control;
+	}
+	}
+
+	action(wb_sendWBAckDirect, "wb", desc="Send WB acknowledgement message to
+
+	207
+	requestor") {
+	peek(L1requestNetwork_in, RequestMsg) {
+	enqueue(responseNetwork_out, ResponseMsg,
+	latency="L1_REQUEST_LATENCY") {
+	out_msg.Address := address;
+	out_msg.Type := CoherenceResponseType:MEMORY_ACK;
+	out_msg.SenderMachine := MachineType:L2Cache;
+	out_msg.Destination.add(in_msg.Requestor);
+	out_msg.MessageSize := MessageSizeType:Control;
+	}
+	}
+	}
+	// Conflict only messages
+	action(ax_ackAndTransfer, "ax", desc="Send ack and XFR to requester
+	cache") {
+	peek(L1requestNetwork_in, RequestMsg) {
+	enqueue(responseNetwork_out, ResponseMsg,
+	latency="L1_REQUEST_LATENCY") {
+	out_msg.Address := address;
+	out_msg.Type := CoherenceResponseType:XFR;
+	out_msg.SenderMachine := MachineType:L2Cache;
+	out_msg.Dirty := false;
+	out_msg.Sender := machineID;
+	out_msg.Transfer := popNextRequestor(address);
+	out_msg.Destination.add(in_msg.Requestor);
+	out_msg.MessageSize := MessageSizeType:Control;
+	}
+	}
+	}
+	action(at_sendAckOrTransfer, "at", desc="Send acknowledgement message to
+	requestor or transfer if necessary") {
+	peek(L1requestNetwork_in, RequestMsg) {
+	// No final nodes to transfer too, simply send ack
+	if (L2_TBEs[address].requestors.getSize() == 0) {
+	enqueue(responseNetwork_out, ResponseMsg,
+
+	208APPENDIX B. HOME NODE AND SHARED CACHE CONTROLLER SLICC CODE
+	latency="L1_REQUEST_LATENCY") {
+	out_msg.Address := address;
+	out_msg.Type := CoherenceResponseType:ACK;
+	out_msg.SenderMachine := MachineType:L2Cache;
+	out_msg.Destination.add(in_msg.Requestor);
+	out_msg.MessageSize := MessageSizeType:Control;
+	}
+	}
+	// Final node to be transferred too, send to this
+	else {
+	enqueue(responseNetwork_out, ResponseMsg,
+	latency="L1_REQUEST_LATENCY") {
+	out_msg.Address := address;
+	out_msg.Type := CoherenceResponseType:XFR;
+	out_msg.SenderMachine := MachineType:L2Cache;
+	out_msg.Dirty := false;
+	out_msg.Sender := machineID;
+	out_msg.Transfer := popNextRequestor(address);
+	out_msg.Destination.add(in_msg.Requestor);
+	out_msg.MessageSize := MessageSizeType:Control;
+	}
+	}
+	}
+	}
+	// Using popNextTransfer because this (and tdx_dataAndTransferFromTBE)
+	are called when home will be sending the data to the node: they should be
+	removed from
+	// the requestor queue.
+	action(dx_dataAndTransfer, "dx", desc="Send data and XFR to requester
+	cache") {
+	peek(L1requestNetwork_in, RequestMsg) {
+	enqueue(responseNetwork_out, ResponseMsg,
+	latency="L2_RESPONSE_LATENCY") {
+	out_msg.Address := address;
+	out_msg.Type := CoherenceResponseType:DXFR;
+	out_msg.SenderMachine := MachineType:L2Cache;
+	out_msg.DataBlk := L2_TBEs[address].DataBlk;
+
+	209
+	out_msg.Dirty := false;
+	out_msg.Sender := machineID;
+	out_msg.Transfer := popNextTransfer(address,
+	in_msg.Requestor);
+	out_msg.Destination.add(in_msg.Requestor);
+	out_msg.MessageSize := MessageSizeType:Response_Data;
+	}
+	}
+	}
+	action(tdx_dataAndTransferFromTBE, "tdx", desc="Send data and XFR to
+	requester cache (from TBE)") {
+	enqueue(responseNetwork_out, ResponseMsg,
+	latency="L2_RESPONSE_LATENCY") {
+	out_msg.Address := address;
+	out_msg.Type := CoherenceResponseType:DXFR;
+	out_msg.SenderMachine := MachineType:L2Cache;
+	out_msg.DataBlk := L2_TBEs[address].DataBlk;
+	out_msg.Dirty := false;
+	out_msg.Sender := machineID;
+	out_msg.Transfer := popNextTransfer(address,
+	L2_TBEs[address].L1_Read_ID);
+	out_msg.Destination.add(L2_TBEs[address].L1_Read_ID);
+	out_msg.MessageSize := MessageSizeType:Response_Data;
+	}
+	}
+	action(w_sendWait, "w", desc="Send wait to requester cache") {
+	peek(L1requestNetwork_in, RequestMsg) {
+	removeRequestor(address, in_msg.Requestor);
+	enqueue(responseNetwork_out, ResponseMsg,
+	latency="L1_REQUEST_LATENCY") {
+	out_msg.Address := address;
+	out_msg.Type := CoherenceResponseType:Wait;
+	out_msg.SenderMachine := MachineType:L2Cache;
+	out_msg.DataBlk := L2_TBEs[address].DataBlk;
+	out_msg.Dirty := false;
+
+	210APPENDIX B. HOME NODE AND SHARED CACHE CONTROLLER SLICC CODE
+	out_msg.Sender := machineID;
+	//out_msg.Transfer := in_msg.Requestor;
+	out_msg.Destination.add(in_msg.Requestor);
+	out_msg.MessageSize := MessageSizeType:Response_Data;
+	}
+	}
+	}
+	action(wx_sendWaitAndTransfer, "wx", desc="Send wait and XFR to requester
+	cache") {
+	peek(L1requestNetwork_in, RequestMsg) {
+	//removeRequestor(address, in_msg.Requestor);
+	enqueue(responseNetwork_out, ResponseMsg,
+	latency="L1_REQUEST_LATENCY") {
+	out_msg.Address := address;
+	out_msg.Type := CoherenceResponseType:WaitXFR;
+	out_msg.SenderMachine := MachineType:L2Cache;
+	out_msg.DataBlk := L2_TBEs[address].DataBlk;
+	out_msg.Dirty := false;
+	out_msg.Sender := machineID;
+	out_msg.Transfer := popNextTransferAfterRequestor(address,
+	in_msg.Requestor);
+	out_msg.Destination.add(in_msg.Requestor);
+	out_msg.MessageSize := MessageSizeType:Response_Data;
+	}
+	// Since this node is ready to complete its memory transaction as
+	soon as it gets the line, it should be passed the line ASAP
+	// Cannot do this now
+	//moveToHead(address, in_msg.Requestor);
+	}
+	}
+	// Other actions
+	action(ss_allocateTBE, "\s", desc="Allocates the TBE (only for WB)") {
+	allocateTBE(address);
+	}
+
+	211
+	action(s_deallocateTBE, "s", desc="Deallocate external TBE") {
+	L2_TBEs.deallocate(address);
+	}
+	action(dc_deallocateL2CacheBlock, "dc", desc="Deallocate L2 cache block.
+	Sets the cache to not present.") {
+	assert(L2cacheMemory.isTagPresent(address));
+	L2cacheMemory.deallocate(address);
+	}
+	action(ac_allocateL2CacheBlock, "ac", desc="Set L2-cache tag equal to tag
+	of block B.") {
+	assert (L2cacheMemory.isTagPresent(address) == false); //{
+	L2cacheMemory.allocate(address);
+	//}
+	}
+	action(wc_writeHomeDataToL1Cache, "wc", desc="Write data from L1 cache")
+	{
+	peek(L1requestNetwork_in, RequestMsg) {
+	getL2CacheEntry(address).DataBlk := in_msg.DataBlk;
+	getL2CacheEntry(address).Dirty := in_msg.Dirty;
+	}
+	}
+	action(ct_copydataTBE, "ct", desc="Copies data from the L2 cache into the
+	TBE"){
+	L2_TBEs[address].DataBlk := getL2CacheEntry(address).DataBlk;
+	L2_TBEs[address].Dirty := getL2CacheEntry(address).Dirty;
+	}
+	action(o_popL1RequestQueue, "o", desc="Pop L1 request queue.") {
+	L1requestNetwork_in.dequeue();
+	}
+	action(oo_popIncomingResponseQueue, "\o", desc="Pop response to L2
+	queue.") {
+	responseToL2Cache_in.dequeue();
+	}
+
+	212APPENDIX B. HOME NODE AND SHARED CACHE CONTROLLER SLICC CODE
+
+	action(od_popIncomingDataResponseQueue, "od", desc="Pop DACK response to
+	L2 queue.") {
+	dataResponseNetwork_in.dequeue();
+	}
+	action(rr_recordRead, "\r", desc="Record L1 read") {
+	peek(L1requestNetwork_in, RequestMsg) {
+	L2_TBEs[in_msg.Address].L1_Read_ID := in_msg.Requestor;
+	}
+	}
+	action(gr_registerGet, "gr", desc="Registers this get request") {
+	peek(L1requestNetwork_in, RequestMsg) {
+	registerRequest(in_msg.Address);
+	}
+	}
+	action(r_recordWB, "r", desc="Record L1 read") {
+	peek(L1requestNetwork_in, RequestMsg) {
+	L2_TBEs[in_msg.Address].L1_WB_ID := in_msg.Requestor;
+	}
+	}
+	action(mr_setMRU, "mr", desc="manually set the MRU bit for cache line" )
+	{
+	if(L2cacheMemory.isTagPresent(address)) {
+	L2cacheMemory.setMRU(address);
+	}
+	}
+	action(rq_recycleRequestQueue, "rq", desc="Send the head of the request
+	queue to the back of the queue.") {
+	L1requestNetwork_in.recycle();
+	}
+	action(uu_profileMiss, "\u", desc="Profile the demand miss") {
+	peek(L1requestNetwork_in, RequestMsg) {
+	// AccessModeType not implemented
+
+	213
+	if (in_msg.Type != CoherenceRequestType:GET_INSTR){
+	profile_L2Cache_miss(convertToGenericType(in_msg.Type),
+	in_msg.AccessMode, MessageSizeTypeToInt(in_msg.MessageSize),
+	in_msg.Prefetch, machineIDToNodeID(in_msg.Requestor));
+	}
+	}
+	}
+	// Transitions
+	transition(I, {GetS, GetInstr, GetX}, W) {
+	gr_registerGet;
+	di_sendIACKToRequestor;
+	a_issueFetchToMemory;
+	uu_profileMiss;
+	o_popL1RequestQueue;
+	}
+	// If we received a cancel request before the line came back.
+	transition(I, {Data, Data_Final}) {
+	oo_popIncomingResponseQueue;
+	}
+
+	transition(I, DataM, M) {
+	ac_allocateL2CacheBlock;
+	wc_writeHomeDataToL1Cache;
+	wb_sendWBAckDirect;
+	mr_setMRU;
+	o_popL1RequestQueue;
+	}
+	transition(I, DataFM, FM) {
+	ac_allocateL2CacheBlock;
+	wc_writeHomeDataToL1Cache;
+	wb_sendWBAckDirect;
+	mr_setMRU;
+	o_popL1RequestQueue;
+	}
+
+	214APPENDIX B. HOME NODE AND SHARED CACHE CONTROLLER SLICC CODE
+
+	// Requests when cached
+	transition(M, {GetS, GetInstr, GetX}, FW) {
+	fm_forwardmodifiedDataToCache;
+	//ct_copydataTBE;
+	//mr_setMRU;
+	dc_deallocateL2CacheBlock;
+	gr_registerGet;
+	//uu_profileMiss; // TODO: want to change this to an L2 hit profile?
+	o_popL1RequestQueue;
+	}
+	transition(FM, {GetS, GetInstr, GetX}, FW) {
+	ffm_forwardforwardmodifiedDataToCache;
+	//ct_copydataTBE;
+	//mr_setMRU;
+	dc_deallocateL2CacheBlock;
+	gr_registerGet;
+	//uu_profileMiss; // TODO: want to change this to an L2 hit profile?
+	o_popL1RequestQueue;
+	}
+	transition({I, FM, M, W, WD, WR, WDC, WCF, FW, WB}, DACK) {
+	od_popIncomingDataResponseQueue;
+	}
+	// transition({M, FM}, {GetS, GetInstr, GetX}, WB) {
+	//
+
+	ss_allocateTBE;
+
+	//
+
+	c_writebackData;
+
+	//
+
+	dc_deallocateL2CacheBlock;
+
+	// }
+	transition(FW, {GetS, GetInstr, GetX}) {
+	rq_recycleRequestQueue;
+	}
+	transition({FW, FM, M}, {Data, Data_Final}) {
+	oo_popIncomingResponseQueue;
+
+	215
+	}
+	transition(FW, Cncl, WCF) {
+	ax_ackAndTransfer;
+	o_popL1RequestQueue;
+	}
+	transition(FW, Cncl_Final, I) {
+	aa_sendAck;
+	s_deallocateTBE;
+	o_popL1RequestQueue;
+	}
+	transition(FW, Cncl_No_Conflict, WR) {
+	at_sendAckOrTransfer;
+	o_popL1RequestQueue;
+	}
+	// L2_Replacement
+	transition({M, FM}, L2_Replacement, WB) {
+	ss_allocateTBE;
+	c_writebackData;
+	dc_deallocateL2CacheBlock;
+	}
+	// transition(I, L2_Replacement) {
+	//
+
+	dc_deallocateL2CacheBlock;
+
+	// }
+	//
+	// transition({W, WD, WR, WDC, WCF, FW}, L2_Replacement) {
+	//
+
+	rq_recycleRequestQueue;
+
+	// }
+
+	transition(WB, Mem_Ack, I) {
+	s_deallocateTBE;
+	oo_popIncomingResponseQueue;
+	}
+
+	216APPENDIX B. HOME NODE AND SHARED CACHE CONTROLLER SLICC CODE
+
+	transition(WB, {GetS, GetInstr, GetX}) {
+	rq_recycleRequestQueue;
+	}
+
+	// transition(WB, Mem_Ack, I) {
+	//
+
+	wa_sendWBAck;
+
+	//
+
+	s_deallocateTBE;
+
+	//
+
+	oo_popIncomingResponseQueue;
+
+	// }
+	// transition(WB, {GetS, GetInstr, GetX}) {
+	//
+
+	rq_recycleRequestQueue;
+
+	// }
+
+	// transition({W, WR}, WB_Data, WBW) {
+	//
+
+	c_writebackData;
+
+	//
+
+	r_recordWB;
+
+	//
+
+	rd_requestStoreDataTBE;
+
+	//
+
+	o_popL1RequestQueue;
+
+	// }
+	transition({W, WR}, {DataM, DataFM}, WR) {
+	rd_requestStoreDataTBE;
+	r_recordWB;
+	wa_sendWBAck;
+	o_popL1RequestQueue;
+	}
+	// transition(WBW, {GetS, GetInstr, GetX, Read, Read_Final,
+	Read_No_Conflict, Cncl, Cncl_Final, Cncl_No_Conflict}) {
+	//
+
+	rq_recycleRequestQueue;
+
+	// }
+	// Have the data already from the WB_Data
+	// transition(WBW, Mem_Ack, WR) {
+	//
+
+	wa_sendWBAck;
+
+	//
+
+	oo_popIncomingResponseQueue;
+
+	217
+	// }
+	//
+	// transition(WBW, Data) {
+	//
+
+	oo_popIncomingResponseQueue;
+
+	// }
+	// WBWCF
+	// transition(WCF, {DataF, DataFM}, WCF) {
+	//
+
+	rd_requestStoreDataTBE;
+
+	//
+
+	r_recordWB;
+
+	//
+
+	wa_sendWBAck;
+
+	//
+
+	o_popL1RequestQueue;
+
+	// }
+
+	// transition(WBWCF, {GetS, GetInstr, GetX, Read, Read_Final,
+	Read_No_Conflict, Cncl, Cncl_Final, Cncl_No_Conflict}) {
+	//
+
+	rq_recycleRequestQueue;
+
+	// }
+	// Have the data already from the WB_Data
+	// transition(WBWCF, Mem_Ack, WCF) {
+	//
+
+	wa_sendWBAck;
+
+	//
+
+	oo_popIncomingResponseQueue;
+
+	// }
+	//
+	// transition(WBWCF, Data) {
+	//
+
+	oo_popIncomingResponseQueue;
+
+	// }
+	// Because of the WBW -> WR transition, could get data in WR
+	transition(WR, {Data, Data_Final}) {
+	oo_popIncomingResponseQueue;
+	}
+	transition(WB, Data_Final) {
+	oo_popIncomingResponseQueue;
+	}
+
+	218APPENDIX B. HOME NODE AND SHARED CACHE CONTROLLER SLICC CODE
+
+	transition(W, {Read_Final, Read_No_Conflict}, WD) {
+	rr_recordRead;
+	o_popL1RequestQueue;
+	}
+	transition(W, Cncl_Final, I) {
+	aa_sendAck;
+	s_deallocateTBE;
+	o_popL1RequestQueue;
+	}
+	transition(W, Cncl_No_Conflict) {
+	aa_sendAck;
+	o_popL1RequestQueue;
+	}
+	transition(W, {Data, Data_Final}, WR) {
+	d_storeDataTBE;
+	oo_popIncomingResponseQueue;
+	}
+	// Requests left to be issued, get line agian
+	transition(WD, Data, W) {
+	d_storeDataTBE;
+	f_forwardDataToCache;
+	a_issueFetchToMemory;
+	oo_popIncomingResponseQueue;
+	}
+	transition(WD, Data_Final, I) {
+	d_storeDataTBE;
+	f_forwardDataToCache;
+	s_deallocateTBE;
+	oo_popIncomingResponseQueue;
+	}
+	transition(WR, Read_Final, I) {
+	rr_recordRead;
+
+	219
+	f_forwardDataToCache;
+	s_deallocateTBE;
+	o_popL1RequestQueue;
+	}
+	// transition(WR, Read_No_Conflict, WD) {
+	//
+
+	rr_recordRead;
+
+	//
+
+	a_issueFetchToMemory;
+
+	//
+
+	o_popL1RequestQueue;
+
+	// }
+	transition(WR, Read_No_Conflict) {
+	rr_recordRead;
+	f_forwardDataToCache;
+	o_popL1RequestQueue;
+	}
+	transition(WR, Cncl_Final, I) {
+	aa_sendAck;
+	s_deallocateTBE;
+	o_popL1RequestQueue;
+	}
+	transition(WR, Cncl_No_Conflict) {
+	at_sendAckOrTransfer;
+	o_popL1RequestQueue;
+	}
+	// Conflicting transitions
+	transition(WD, Cncl, WCF) {
+	ax_ackAndTransfer;
+	o_popL1RequestQueue;
+	}
+	// Should never occur
+	/*transition(WD, Read, WDC) {
+	rr_recordRead;
+	o_popL1RequestQueue;
+
+	220APPENDIX B. HOME NODE AND SHARED CACHE CONTROLLER SLICC CODE
+	}*/
+
+	transition(WR, Cncl, WCF) {
+	ax_ackAndTransfer;
+	o_popL1RequestQueue;
+	}
+	transition(WR, Read, WCF) {
+	dx_dataAndTransfer;
+	o_popL1RequestQueue;
+	}
+	// TODO: I think it is fine to NOT transfer to WC here
+	transition(W, {GetS, GetInstr, GetX}) {
+	gr_registerGet;
+	di_sendIACKToRequestor;
+	uu_profileMiss;
+	o_popL1RequestQueue;
+	}
+	transition(W, Cncl, WCF) {
+	ax_ackAndTransfer;
+	o_popL1RequestQueue;
+	}
+	transition(W, Read, WDC) {
+	rr_recordRead;
+	o_popL1RequestQueue;
+	}
+	transition(WD, {GetS, GetInstr, GetX}) {
+	gr_registerGet;
+	di_sendIACKToRequestor;
+	uu_profileMiss;
+	o_popL1RequestQueue;
+	}
+	transition(WR, {GetS, GetInstr, GetX}) {
+
+	221
+	gr_registerGet;
+	di_sendIACKToRequestor;
+	uu_profileMiss;
+	o_popL1RequestQueue;
+	}
+	/*transition(WRC, {GetS, GetInstr, GetX}) {
+	di_sendIACKToRequestor;
+	o_popL1RequestQueue;
+	}*/
+	transition(WDC, {GetS, GetInstr, GetX}) {
+	gr_registerGet;
+	di_sendIACKToRequestor;
+	uu_profileMiss;
+	o_popL1RequestQueue;
+	}
+	// A solution here is to sent a wait transfer request
+	transition(WDC, Read_Delay) {
+	rq_recycleRequestQueue;
+	}
+	transition(WDC, {Data, Data_Final}, WCF) {
+	d_storeDataTBE;
+	tdx_dataAndTransferFromTBE;
+	oo_popIncomingResponseQueue;
+	}
+	/*transition(WRC, Read, WCF) {
+	dx_dataAndTransfer;
+	o_popL1RequestQueue;
+	}*/
+	/*transition(WRC, Cncl, WCF) {
+	ax_ackAndTransfer;
+	o_popL1RequestQueue;
+	}*/
+
+	222APPENDIX B. HOME NODE AND SHARED CACHE CONTROLLER SLICC CODE
+	transition(WCF, {GetS, GetInstr, GetX}) {
+	gr_registerGet;
+	di_sendIACKToRequestor;
+	uu_profileMiss;
+	o_popL1RequestQueue;
+	}
+	transition(WCF, {Data, Data_Final}) {
+	oo_popIncomingResponseQueue;
+	}
+	transition(WCF, Read) {
+	wx_sendWaitAndTransfer;
+	o_popL1RequestQueue;
+	}
+	transition(WCF, Read_Final, I) {
+	w_sendWait;
+	s_deallocateTBE;
+	o_popL1RequestQueue;
+	}
+	transition(WCF, Read_No_Conflict, W) {
+	w_sendWait;
+	a_issueFetchToMemory;
+	o_popL1RequestQueue;
+	}
+	transition(WCF, Read_Delay) {
+	rq_recycleRequestQueue;
+	}
+	transition(WCF, Cncl) {
+	ax_ackAndTransfer;
+	o_popL1RequestQueue;
+	}
+	transition(WCF, Cncl_Final, I) {
+	aa_sendAck;
+
+	223
+	s_deallocateTBE;
+	o_popL1RequestQueue;
+	}
+	transition(WCF, Cncl_No_Conflict, W) {
+	aa_sendAck;
+	a_issueFetchToMemory;
+	o_popL1RequestQueue;
+	}
+	}
+
+	224APPENDIX B. HOME NODE AND SHARED CACHE CONTROLLER SLICC CODE
+
+	Appendix C
+
+	Main Memory Controller SLICC
+	Code
+
+	/*
+	Copyright (C) 1999-2005 by Mark D. Hill and David A. Wood for the
+	Wisconsin Multifacet Project.
+
+	Contact: gems@cs.wisc.edu
+
+	http://www.cs.wisc.edu/gems/
+	-------------------------------------------------------------------This file is part of the SLICC (Specification Language for
+	Implementing Cache Coherence), a component of the Multifacet GEMS
+	(General Execution-driven Multiprocessor Simulator) software
+	toolset originally developed at the University of Wisconsin-Madison.
+
+	SLICC was originally developed by Milo Martin with substantial
+	contributions from Daniel Sorin.
+	Substantial further development of Multifacet GEMS at the
+	University of Wisconsin was performed by Alaa Alameldeen, Brad
+	Beckmann, Jayaram Bobba, Ross Dickson, Dan Gibson, Pacia Harper,
+	Derek Hower, Milo Martin, Michael Marty, Carl Mauer, Michelle Moravan,
+	Kevin Moore, Manoj Plakal, Daniel Sorin, Haris Volos, Min Xu, and Luke
+	Yen.
+	--------------------------------------------------------------------
+
+	225
+
+	226
+
+	APPENDIX C. MAIN MEMORY CONTROLLER SLICC CODE
+
+	If your use of this software contributes to a published paper, we
+	request that you (1) cite our summary paper that appears on our
+	website (http://www.cs.wisc.edu/gems/) and (2) e-mail a citation
+	for your published paper to gems@cs.wisc.edu.
+	If you redistribute derivatives of this software, we request that
+	you notify us and either (1) ask people to register with us at our
+	website (http://www.cs.wisc.edu/gems/) or (2) collect registration
+	information and periodically send it to us.
+	-------------------------------------------------------------------Multifacet GEMS is free software; you can redistribute it and/or
+	modify it under the terms of version 2 of the GNU General Public
+	License as published by the Free Software Foundation.
+	Multifacet GEMS is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+	See the GNU
+
+	General Public License for more details.
+	You should have received a copy of the GNU General Public License
+	along with the Multifacet GEMS; if not, write to the Free Software
+	Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
+	02111-1307, USA
+	The GNU General Public License is contained in the file LICENSE.
+	### END HEADER ###
+	*/
+	/*
+	* $Id: MOESI_CMP_token-dir.sm 1.6 05/01/19 15:48:35-06:00
+	mikem@royal16.cs.wisc.edu $
+	*/
+	/*
+	Code taken from MESI_CMP_directory-mem.sm
+	Modified by Andrew Hay (andrewh@cs.auckland.ac.nz), 2011
+
+	227
+	*/
+	machine(Directory, "MESIF protocol") {
+	MessageBuffer requestToDir, network="From", virtual_network="2",
+	ordered="false";
+	//MessageBuffer responseToDir, network="From", virtual_network="3",
+	ordered="false";
+
+	// Noone is sending on this VN yet
+
+	MessageBuffer responseFromDir, network="To", virtual_network="3",
+	ordered="false";
+	// STATES
+	enumeration(State, desc="Directory states", default="Directory_State_I")
+	{
+	// Base states
+	I, desc="Owner";
+	}
+	// Events
+	enumeration(Event, desc="Directory events") {
+	Fetch, desc="A GETX arrives";
+	Data, desc="A GETS arrives";
+	}
+	// TYPES
+	// DirectoryEntry
+	structure(Entry, desc="...") {
+	DataBlock DataBlk,
+	}
+	external_type(DirectoryMemory) {
+	Entry lookup(Address);
+	bool isPresent(Address);
+	}
+
+	// ** OBJECTS **
+
+	desc="data for the block";
+
+	228
+
+	APPENDIX C. MAIN MEMORY CONTROLLER SLICC CODE
+	DirectoryMemory directory, constructor_hack="i";
+	State getState(Address addr) {
+	return State:I;
+	}
+	void setState(Address addr, State state) {
+	}
+	// ** OUT_PORTS **
+	out_port(responseNetwork_out, ResponseMsg, responseFromDir);
+	// ** IN_PORTS **
+	in_port(requestNetwork_in, RequestMsg, requestToDir) {
+	if (requestNetwork_in.isReady()) {
+	peek(requestNetwork_in, RequestMsg) {
+	assert(in_msg.Destination.isElement(machineID));
+	if (in_msg.Type == CoherenceRequestType:GETS) {
+	trigger(Event:Fetch, in_msg.Address);
+	}
+	else if (in_msg.Type == CoherenceRequestType:GETX) {
+	trigger(Event:Fetch, in_msg.Address);
+	}
+	else if (in_msg.Type == CoherenceRequestType:PUTX) {
+	trigger(Event:Data, in_msg.Address);
+	}
+	else {
+	error("Invalid message");
+	}
+	}
+	}
+	}
+	// Never used!
+	/*in_port(responseNetwork_in, ResponseMsg, responseToDir) {
+	if (responseNetwork_in.isReady()) {
+	peek(responseNetwork_in, ResponseMsg) {
+	assert(in_msg.Destination.isElement(machineID));
+
+	229
+	if (in_msg.Type == CoherenceResponseType:MEMORY_DATA) {
+	trigger(Event:Data, in_msg.Address);
+	}
+	else {
+	DEBUG_EXPR(in_msg.Type);
+	error("Invalid message");
+	}
+	}
+	}
+	}*/
+	// Actions
+	action(a_sendAck, "a", desc="Send ack to L2") {
+	peek(requestNetwork_in, RequestMsg) {
+	enqueue(responseNetwork_out, ResponseMsg,
+	latency="MEMORY_LATENCY") {
+	out_msg.Address := address;
+	out_msg.Type := CoherenceResponseType:MEMORY_ACK;
+	out_msg.Sender := machineID;
+	out_msg.Destination.add(in_msg.Requestor);
+	out_msg.MessageSize := MessageSizeType:Response_Control;
+	}
+	}
+	}
+	action(d_sendData, "d", desc="Send data to requestor") {
+	peek(requestNetwork_in, RequestMsg) {
+	enqueue(responseNetwork_out, ResponseMsg,
+	latency="MEMORY_LATENCY") {
+	out_msg.Address := address;
+	out_msg.Type := CoherenceResponseType:MEMORY_DATA;
+	out_msg.Sender := machineID;
+	out_msg.Destination.add(in_msg.Requestor);
+	out_msg.DataBlk := directory[in_msg.Address].DataBlk;
+	out_msg.Dirty := false;
+	out_msg.MessageSize := MessageSizeType:Response_Data;
+	}
+	}
+	}
+
+	230
+
+	APPENDIX C. MAIN MEMORY CONTROLLER SLICC CODE
+
+	action(j_popIncomingRequestQueue, "j", desc="Pop incoming request queue")
+	{
+	requestNetwork_in.dequeue();
+	}
+	/*action(k_popIncomingResponseQueue, "k", desc="Pop incoming request
+	queue") {
+	responseNetwork_in.dequeue();
+	}*/
+	action(m_writeDataToMemory, "m", desc="Write dirty writeback to memory")
+	{
+	peek(requestNetwork_in, RequestMsg) {
+	directory[in_msg.Address].DataBlk := in_msg.DataBlk;
+	DEBUG_EXPR(in_msg.Address);
+	DEBUG_EXPR(in_msg.DataBlk);
+	}
+	}
+	// TRANSITIONS
+	transition(I, Fetch) {
+	d_sendData;
+	j_popIncomingRequestQueue;
+	}
+	transition(I, Data) {
+	m_writeDataToMemory;
+	a_sendAck;
+	j_popIncomingRequestQueue;
+	}
+	}
+

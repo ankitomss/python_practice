@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<module type="PYTHON_MODULE" version="4">
+  <component name="NewModuleRootManager">
+    <content url="file://$MODULE_DIR$" />
+    <orderEntry type="jdk" jdkName="Python 2.7.10 (/System/Library/Frameworks/Python.framework/Versions/2.7/bin/python2.7)" jdkType="Python SDK" />
+    <orderEntry type="sourceFolder" forTests="false" />
+    <orderEntry type="module" module-name="Pycharm" />
+    <orderEntry type="module" module-name="pysolr-3.4.0" />
+    <orderEntry type="module" module-name="Project1" />
+    <orderEntry type="module" module-name="virtualenv_" />
+    <orderEntry type="module" module-name="gem5-ECEN676" />
+    <orderEntry type="module" module-name="virtualenv2" />
+    <orderEntry type="module" module-name="gems-2.1.1" />
+    <orderEntry type="module" module-name="twitter_search_engine" />
+    <orderEntry type="module" module-name="twitter_search_engine" />
+    <orderEntry type="module" module-name="twitter_search_engine" />
+    <orderEntry type="module" module-name="solr-5.5.0" />
+  </component>
+  <component name="TestRunnerService">
+    <option name="PROJECT_TEST_RUNNER" value="Unittests" />
+  </component>
+</module>

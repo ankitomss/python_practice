@@ -1,0 +1,4 @@
+wget http://dropzone.tamu.edu/~cienlux/public/gem5-ECEN676.tar.bz2
+tar jvfx gem5-ECEN676.tar.bz2
+scons build/ARM/gem5.opt PROTOCOL=MESI_Two_Level RUBY=True
+ssh v.ankit001@lin10-076w.ece.tamu.edu
