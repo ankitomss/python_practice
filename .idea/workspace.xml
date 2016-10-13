@@ -23,16 +23,6 @@
   </component>
   <component name="FileEditorManager">
     <leaf SIDE_TABS_SIZE_LIMIT_KEY="300">
-      <file leaf-file-name="subseq2.py" pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/Expert/subseq2.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state vertical-scroll-proportion="0.0">
-              <caret line="25" column="12" selection-start-line="25" selection-start-column="12" selection-end-line="25" selection-end-column="12" />
-              <folding />
-            </state>
-          </provider>
-        </entry>
-      </file>
       <file leaf-file-name="toBin.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/Expert/toBin.py">
           <provider selected="true" editor-type-id="text-editor">
@@ -115,11 +105,21 @@
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="gameCoinPick.py" pinned="false" current-in-tab="true">
+      <file leaf-file-name="gameCoinPick.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/Expert/gameCoinPick.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state vertical-scroll-proportion="0.20689656">
+            <state vertical-scroll-proportion="0.0">
               <caret line="15" column="0" selection-start-line="15" selection-start-column="0" selection-end-line="15" selection-end-column="0" />
+              <folding />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="sudokuSolve.py" pinned="false" current-in-tab="true">
+        <entry file="file://$PROJECT_DIR$/Expert/sudokuSolve.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state vertical-scroll-proportion="0.2413793">
+              <caret line="7" column="0" selection-start-line="7" selection-start-column="0" selection-end-line="52" selection-end-column="47" />
               <folding />
             </state>
           </provider>
@@ -141,7 +141,6 @@
   <component name="IdeDocumentHistory">
     <option name="CHANGED_PATHS">
       <list>
-        <option value="$PROJECT_DIR$/count_island.py" />
         <option value="$PROJECT_DIR$/find_peak.py" />
         <option value="$PROJECT_DIR$/lowest_common.py" />
         <option value="$PROJECT_DIR$/move_zeros.py" />
@@ -192,6 +191,7 @@
         <option value="$PROJECT_DIR$/Expert/abbr_check.py" />
         <option value="$PROJECT_DIR$/Expert/largestSum.py" />
         <option value="$PROJECT_DIR$/Expert/gameCoinPick.py" />
+        <option value="$PROJECT_DIR$/Expert/sudokuSolve.py" />
       </list>
     </option>
   </component>
@@ -278,24 +278,7 @@
       <recent name="$PROJECT_DIR$/../../IR_project/virtualenv_/google/search1/static/search1" />
     </key>
   </component>
-  <component name="RunManager" selected="Python.gameCoinPick">
-    <configuration default="false" name="exp_hackerrank" type="PythonConfigurationType" factoryName="Python" temporary="true">
-      <option name="INTERPRETER_OPTIONS" value="" />
-      <option name="PARENT_ENVS" value="true" />
-      <envs>
-        <env name="PYTHONUNBUFFERED" value="1" />
-      </envs>
-      <option name="SDK_HOME" value="" />
-      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/Expert" />
-      <option name="IS_MODULE_SDK" value="true" />
-      <option name="ADD_CONTENT_ROOTS" value="true" />
-      <option name="ADD_SOURCE_ROOTS" value="true" />
-      <module name="python" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/Expert/exp_hackerrank.py" />
-      <option name="PARAMETERS" value="" />
-      <option name="SHOW_COMMAND_LINE" value="false" />
-      <method />
-    </configuration>
+  <component name="RunManager" selected="Python.sudokuSolve">
     <configuration default="false" name="two_characters" type="PythonConfigurationType" factoryName="Python" temporary="true">
       <option name="INTERPRETER_OPTIONS" value="" />
       <option name="PARENT_ENVS" value="true" />
@@ -360,6 +343,23 @@
       <option name="ADD_SOURCE_ROOTS" value="true" />
       <module name="python" />
       <option name="SCRIPT_NAME" value="$PROJECT_DIR$/Expert/gameCoinPick.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <method />
+    </configuration>
+    <configuration default="false" name="sudokuSolve" type="PythonConfigurationType" factoryName="Python" temporary="true">
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/Expert" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <module name="python" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/Expert/sudokuSolve.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <method />
@@ -487,19 +487,19 @@
       <method />
     </configuration>
     <list size="5">
-      <item index="0" class="java.lang.String" itemvalue="Python.exp_hackerrank" />
-      <item index="1" class="java.lang.String" itemvalue="Python.two_characters" />
-      <item index="2" class="java.lang.String" itemvalue="Python.splitArray" />
-      <item index="3" class="java.lang.String" itemvalue="Python.abbr_check" />
-      <item index="4" class="java.lang.String" itemvalue="Python.gameCoinPick" />
+      <item index="0" class="java.lang.String" itemvalue="Python.two_characters" />
+      <item index="1" class="java.lang.String" itemvalue="Python.splitArray" />
+      <item index="2" class="java.lang.String" itemvalue="Python.abbr_check" />
+      <item index="3" class="java.lang.String" itemvalue="Python.gameCoinPick" />
+      <item index="4" class="java.lang.String" itemvalue="Python.sudokuSolve" />
     </list>
     <recent_temporary>
       <list size="5">
-        <item index="0" class="java.lang.String" itemvalue="Python.gameCoinPick" />
-        <item index="1" class="java.lang.String" itemvalue="Python.abbr_check" />
-        <item index="2" class="java.lang.String" itemvalue="Python.splitArray" />
-        <item index="3" class="java.lang.String" itemvalue="Python.two_characters" />
-        <item index="4" class="java.lang.String" itemvalue="Python.exp_hackerrank" />
+        <item index="0" class="java.lang.String" itemvalue="Python.sudokuSolve" />
+        <item index="1" class="java.lang.String" itemvalue="Python.gameCoinPick" />
+        <item index="2" class="java.lang.String" itemvalue="Python.abbr_check" />
+        <item index="3" class="java.lang.String" itemvalue="Python.splitArray" />
+        <item index="4" class="java.lang.String" itemvalue="Python.two_characters" />
       </list>
     </recent_temporary>
   </component>
@@ -526,7 +526,7 @@
     </todo-panel>
   </component>
   <component name="ToolWindowManager">
-    <frame x="0" y="23" width="1280" height="773" extended-state="0" />
+    <frame x="0" y="23" width="1280" height="773" extended-state="6" />
     <editor active="true" />
     <layout>
       <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.23113582" sideWeight="0.48247424" order="0" side_tool="false" content_ui="combo" />
@@ -572,13 +572,6 @@
     <watches-manager />
   </component>
   <component name="editorHistoryManager">
-    <entry file="file://$PROJECT_DIR$/remove_duplicates.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state vertical-scroll-proportion="0.0">
-          <caret line="15" column="0" selection-start-line="15" selection-start-column="0" selection-end-line="15" selection-end-column="0" />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/count_island.py">
       <provider selected="true" editor-type-id="text-editor">
         <state vertical-scroll-proportion="0.0">
@@ -965,8 +958,16 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/Expert/gameCoinPick.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state vertical-scroll-proportion="0.20689656">
+        <state vertical-scroll-proportion="0.0">
           <caret line="15" column="0" selection-start-line="15" selection-start-column="0" selection-end-line="15" selection-end-column="0" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/Expert/sudokuSolve.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state vertical-scroll-proportion="0.2413793">
+          <caret line="7" column="0" selection-start-line="7" selection-start-column="0" selection-end-line="52" selection-end-column="47" />
           <folding />
         </state>
       </provider>
